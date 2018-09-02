@@ -1,18 +1,18 @@
 
 from libc.stdint cimport *
 
-cdef extern from 'strings.h':
-    int fls(int)
-    int flsll(long)
+cdef extern from 'stdlib.h':
     long llabs(long)
     int abs(int)
 
+    int __builtin_clz(uint32_t)
+    int __builtin_clzll(uint64_t)
 
 cdef void zigzag_encode_int(MemoryBuffer buf, int32_t value):
     cdef bint negative = value < 0
     cdef uint32_t raw = abs(value)
     raw = (raw << 1) - negative
-    cdef int bit_pos = fls(raw)
+    cdef int bit_pos = 32 - __builtin_clz(raw)
     if bit_pos < 8:
         buf.write8(raw)
     elif bit_pos < 15:
@@ -46,7 +46,7 @@ cdef void zigzag_encode_long(MemoryBuffer buf, long value):
     cdef bint negative = value < 0
     cdef unsigned long raw = llabs(value)
     raw = (raw << 1) - negative
-    cdef int bit_pos = flsll(raw)
+    cdef int bit_pos = 64 - __builtin_clzll(raw)
     if bit_pos < 8:
         buf.write8(raw & 0x7f)
     elif bit_pos < 15:

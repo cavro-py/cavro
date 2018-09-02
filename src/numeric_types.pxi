@@ -1,9 +1,7 @@
 
 
 cdef class IntType(AvroType):
-
-    def __init__(self, schema, source, namespace):
-        
+    type_name = "int"
 
     cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
         zigzag_encode_int(buffer, value)
@@ -14,9 +12,7 @@ cdef class IntType(AvroType):
         return value >= INT32_MIN and value <= INT32_MAX
 
 cdef class LongType(AvroType):
-
-    def __init__(self, schema, source, namespace):
-        pass
+    type_name = "long"
 
     cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
         zigzag_encode_long(buffer, value)
@@ -29,11 +25,9 @@ cdef class LongType(AvroType):
 
 cdef class FloatType(AvroType):
 
-    def __init__(self, schema, source, namespace):
-        pass
+    pass
 
 
 cdef class DoubleType(AvroType):
 
-    def __init__(self, schema, source, namespace):
-        pass
+    pass

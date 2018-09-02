@@ -1,5 +1,6 @@
 
 cdef class AvroType:
+    type_name = NotImplemented
 
     @classmethod
     def for_source(cls, schema, source, namespace=None):
@@ -14,6 +15,9 @@ cdef class AvroType:
     @classmethod
     def for_schema(cls, schema):
         return AvroType.for_source(schema, schema.source)
+
+    def __init__(self, schema, source, namespace):
+        pass
 
     cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
         raise NotImplementedError(
@@ -32,6 +36,9 @@ cdef class AvroType:
 include "numeric_types.pxi"
 include "string_types.pxi"
 include "union.pxi"
+include "enum.pxi"
+include "map.pxi"
+include "record.pxi"
 
 
 PRIMITIVE_TYPES = {

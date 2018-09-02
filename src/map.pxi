@@ -1,23 +1,14 @@
 
-cdef class UnionType(AvroType):
-    type_name = "union"
+cdef class MapType(AvroType):
 
-    cdef readonly tuple union_types
+    cdef AvroType value_type
 
     def __init__(self, schema, source, namespace):
         self.union_types = tuple(AvroType.for_source(schema, s, namespace) for s in source)
         if not schema.permissive:
-            if len(self.union_types) == 0:
-                raise ValueError("Unions must contain at least one member type")
-            seen_types = set()
-            for member in self.union_types:
-                if isinstance(member, UnionType):
-                    raise ValueError("Unions may not immediately contain other unions")
-                if not isinstance(member, (RecordType, FixedType, EnumType)):
-                    member_type = type(member)
-                    if member_type in seen_types:
-                        raise ValueError(f"Unions may not have more than one member of type '{ member_type.type_name }'")
-                    seen_types.add(member_type)
+            for union_type in self.union_types:
+                if isinstance(union_type, UnionType):
+                    raise ValueError("Unions may not directly contain other unions")
 
     cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
         cdef size_t i = 0

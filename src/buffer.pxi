@@ -5,6 +5,7 @@ from libc.stdint cimport *
 from cpython cimport array
 import array
 
+
 cdef array.array byte_buffer_template = array.array('B', [])
 
 @cython.final
