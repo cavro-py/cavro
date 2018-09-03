@@ -1,5 +1,5 @@
 test: cavro.cpython-36m-darwin.so
-	PYTHONPATH=. pytest -v
+	PYTHONPATH=. pytest -vs
 
 cavro.pyx: src/*
 	touch cavro.pyx

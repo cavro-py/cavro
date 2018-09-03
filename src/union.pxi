@@ -24,7 +24,7 @@ cdef class UnionType(AvroType):
         cdef AvroType union_type
         for union_type in self.union_types:
             if union_type.is_value_valid(value):
-                zigzag_encode_int(buffer, i)
+                zigzag_encode_long(buffer, i)
                 union_type.binary_buffer_encode(buffer, value)
                 return
             i += 1

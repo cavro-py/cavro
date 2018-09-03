@@ -11,6 +11,8 @@ cdef class AvroType:
                 return PRIMITIVE_TYPES[source](schema, source, namespace)
             return schema.find_type(namespace, source)
         type_name = source['type']
+        return TYPES_BY_NAME[type_name](schema, source, namespace)
+
 
     @classmethod
     def for_schema(cls, schema):
@@ -32,6 +34,9 @@ cdef class AvroType:
         self.binary_buffer_encode(buffer, value)
         return buffer.bytes()
 
+    def json_encode(self, value):
+        pass
+
 
 include "numeric_types.pxi"
 include "string_types.pxi"
@@ -49,3 +54,8 @@ PRIMITIVE_TYPES = {
     'bytes': BytesType,
     'string': StringType,
 }
+
+TYPES_BY_NAME = dict(
+    PRIMITIVE_TYPES,
+    map=MapType
+)

@@ -1,2 +1,8 @@
 # cavro
-Python Avro client written in cython
+An Avro serializer/deserializer for python written in cython.
+
+# Notes
+
+Missing splitting map into blocks on encode
+
+

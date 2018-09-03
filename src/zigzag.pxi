@@ -9,6 +9,9 @@ cdef extern from 'stdlib.h':
     int __builtin_clzll(uint64_t)
 
 cdef void zigzag_encode_int(MemoryBuffer buf, int32_t value):
+    if value == 0:
+        buf.write8(0)
+        return
     cdef bint negative = value < 0
     cdef uint32_t raw = abs(value)
     raw = (raw << 1) - negative
@@ -43,6 +46,9 @@ cdef void zigzag_encode_int(MemoryBuffer buf, int32_t value):
         )
 
 cdef void zigzag_encode_long(MemoryBuffer buf, long value):
+    if value == 0:
+        buf.write8(0)
+        return
     cdef bint negative = value < 0
     cdef unsigned long raw = llabs(value)
     raw = (raw << 1) - negative

@@ -4,3 +4,4 @@ include "src/zigzag.pxi"
 
 include "src/type.pxi"
 include "src/schema.pxi"
+include "src/testing.pxi"

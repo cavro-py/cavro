@@ -25,3 +25,7 @@ cdef class Schema:
 
     def binary_encode(self, value):
         return self.type.binary_encode(value)
+
+    def json_encode(self, value):
+        data = self.type.json_encode(value)
+        return json.dumps(data)

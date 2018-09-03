@@ -5,6 +5,8 @@ from libc.stdint cimport *
 from cpython cimport array
 import array
 
+from libc.string cimport memcpy
+
 
 cdef array.array byte_buffer_template = array.array('B', [])
 
@@ -80,3 +82,9 @@ cdef class MemoryBuffer:
         cdef uint64_t *dest = <uint64_t*>&self.buffer.data.as_uchars[self.cur_pos]
         dest[0] = val
         self.cur_pos += 8
+
+    cdef void writeN(self, size_t num, char *bytes):
+        if self.buffer.ob_size - self.cur_pos < num:
+            array.resize_smart(self.buffer, self.cur_pos + num)
+        memcpy(self.buffer.data.as_chars + self.cur_pos, bytes, num)
+        self.cur_pos += num

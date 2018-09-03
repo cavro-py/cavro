@@ -1,28 +1,37 @@
 
 cdef class MapType(AvroType):
 
+    cdef StringType key_type
     cdef AvroType value_type
 
     def __init__(self, schema, source, namespace):
-        self.union_types = tuple(AvroType.for_source(schema, s, namespace) for s in source)
-        if not schema.permissive:
-            for union_type in self.union_types:
-                if isinstance(union_type, UnionType):
-                    raise ValueError("Unions may not directly contain other unions")
+        self.key_type = StringType(schema, 'string', namespace)
+        self.value_type = AvroType.for_source(schema, source['values'], namespace)
 
     cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
-        cdef size_t i = 0
-        cdef AvroType union_type
-        for union_type in self.union_types:
-            if union_type.is_value_valid(value):
-                zigzag_encode_int(buffer, i)
-                union_type.binary_buffer_encode(buffer, value)
-                return
-            i += 1
-        raise ValueError(f"Value '{value}' not valid for UnionType")
+        if hasattr(value, 'items'):
+            value = value.items()
+        zigzag_encode_long(buffer, len(value))
+        if value:
+            for key, item_value in value:
+                self.key_type.binary_buffer_encode(buffer, key)
+                self.value_type.binary_buffer_encode(buffer, item_value)
+            zigzag_encode_long(buffer, 0)
 
     cdef bint is_value_valid(self, value):
-        for union_type in self.union_types:
-            if union_type.is_value_valid(value):
-                return True
-        return False
+        if hasattr(value, 'items'):
+            value = value.items()
+        try:
+            it = iter(value)
+        except TypeError:
+            return False
+        for item in it:
+            try:
+                key, item_value = item
+            except TypeError:
+                return False
+            if not isinstance(key, str):
+                return False
+            if not self.value_type.is_value_valid(item_value):
+                return False
+        return True
