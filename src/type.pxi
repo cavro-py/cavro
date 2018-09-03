@@ -35,7 +35,22 @@ cdef class AvroType:
         return buffer.bytes()
 
     def json_encode(self, value):
-        pass
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement json_encode")
+
+
+cdef class NamedType(AvroType):
+
+    cdef str name
+    cdef str namespace
+    cdef list aliases
+
+    def __init__(self, schema, source, namespace):
+        cdef Schema schema_t = schema
+        self.name = source['name']
+        self.namespace = source.get('namespace')
+        self.aliases = source.get('aliases')
+        schema_t.register_type(self.namespace, self.name, self)
 
 
 include "numeric_types.pxi"
@@ -57,5 +72,6 @@ PRIMITIVE_TYPES = {
 
 TYPES_BY_NAME = dict(
     PRIMITIVE_TYPES,
-    map=MapType
+    map=MapType,
+    enum=EnumType
 )

@@ -1,5 +1,11 @@
 import json
 
+cdef str resolve_namespaced_name(str namespace, str name):
+    if '.' in name:
+        return name
+    return f'{namespace}.{name}'
+
+
 cdef class Schema:
 
     cdef readonly dict named_types
@@ -15,10 +21,11 @@ cdef class Schema:
         self.source = source
         self.type = AvroType.for_schema(self)
 
-    def find_type(self, namespace, source):
-        if '.' not in source and namespace is not None:
-            source = "%s.%s" % (namespace, source)
-        return self.named_types[source]
+    cdef void register_type(self, str namespace, str name, AvroType avro_type):
+        self.named_types[resolve_namespaced_name(namespace, name)] = avro_type
+
+    def find_type(self, str namespace, str name):
+        return self.named_types[resolve_namespaced_name(namespace, name)]
 
     def can_encode(self, value):
         return self.type.is_value_valid(value)
