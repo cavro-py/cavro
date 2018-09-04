@@ -13,7 +13,6 @@ cdef class AvroType:
         type_name = source['type']
         return TYPES_BY_NAME[type_name](schema, source, namespace)
 
-
     @classmethod
     def for_schema(cls, schema):
         return AvroType.for_source(schema, schema.source)
@@ -21,20 +20,32 @@ cdef class AvroType:
     def __init__(self, schema, source, namespace):
         pass
 
-    cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
+    cdef void binary_buffer_encode(self, MemoryWriter buffer, value):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement binary_buffer_encode")
+
+    cdef binary_buffer_decode(self, MemoryReader buffer):
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement binary_buffer_decode")
 
     cdef bint is_value_valid(self, value):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement is_value_valid")
 
     def binary_encode(self, value):
-        cdef MemoryBuffer buffer = MemoryBuffer()
+        cdef MemoryWriter buffer = MemoryWriter()
         self.binary_buffer_encode(buffer, value)
         return buffer.bytes()
 
+    def binary_decode(self,bytes value):
+        cdef MemoryReader buffer = MemoryReader(value)
+        return self.binary_buffer_decode(buffer)
+
     def json_encode(self, value):
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement json_encode")
+
+    def json_decode(self, value):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement json_encode")
 

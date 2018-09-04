@@ -11,7 +11,7 @@ from libc.string cimport memcpy
 cdef array.array byte_buffer_template = array.array('B', [])
 
 @cython.final
-cdef class MemoryBuffer:
+cdef class MemoryWriter:
 
     cdef readonly array.array buffer
     cdef size_t cur_pos
@@ -88,3 +88,28 @@ cdef class MemoryBuffer:
             array.resize_smart(self.buffer, self.cur_pos + num)
         memcpy(self.buffer.data.as_chars + self.cur_pos, bytes, num)
         self.cur_pos += num
+
+
+@cython.final
+cdef class MemoryReader:
+
+    cdef bytes data
+    cdef uint8_t[:] data_view
+    cdef size_t n_left
+
+    def __init__(self, bytes data):
+        self.data = data
+        self.data_view = data
+        self.n_left = len(data_view)
+
+    cdef inline void ensure(self, size_t num):
+        if self.n_left < num:
+            raise RuntimeError("Not enough bytes in input data")
+
+    cdef uint8_t read8(self):
+        self.ensure(1)
+        cdef uint8_t value = self.data[self.cur_pos]
+        self.cur_pos += 1
+        return value
+
+    cdef uint32_t read_to32(self):

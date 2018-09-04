@@ -3,8 +3,11 @@ from libc.float cimport FLT_MIN, FLT_MAX
 cdef class IntType(AvroType):
     type_name = "int"
 
-    cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
+    cdef void binary_buffer_encode(self, MemoryWriter buffer, value):
         zigzag_encode_int(buffer, value)
+
+    cdef object binary_buffer_decode(self, MemoryReader buffer):
+        return zigzag_decode_int(buffer)
 
     cdef bint is_value_valid(self, value):
         if not isinstance(value, int):
@@ -14,12 +17,19 @@ cdef class IntType(AvroType):
     def json_encode(self,int32_t value):
         return value
 
+    def json_decode(self, value):
+        cdef int32_t decoded = value
+        return decoded
+
 
 cdef class LongType(AvroType):
     type_name = "long"
 
-    cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
+    cdef void binary_buffer_encode(self, MemoryWriter buffer, value):
         zigzag_encode_long(buffer, value)
+
+    cdef object binary_buffer_decode(self, MemoryReader buffer):
+        return zigzag_decode_long(buffer)
 
     cdef bint is_value_valid(self, value):
         if not isinstance(value, int):
@@ -33,7 +43,7 @@ cdef class LongType(AvroType):
 cdef class FloatType(AvroType):
     type_name = "float"
 
-    cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
+    cdef void binary_buffer_encode(self, MemoryWriter buffer, value):
         cdef float float_val = value
         cdef uint32_t *int_val = <uint32_t*>&float_val
         buffer.write32(int_val[0])
@@ -52,7 +62,7 @@ cdef class FloatType(AvroType):
 cdef class DoubleType(AvroType):
     type_name = "double"
 
-    cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
+    cdef void binary_buffer_encode(self, MemoryWriter buffer, value):
         cdef double float_val = value
         cdef uint64_t *int_val = <uint64_t*>&float_val
         buffer.write64(int_val[0])

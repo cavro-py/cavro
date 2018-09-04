@@ -8,7 +8,7 @@ cdef extern from 'stdlib.h':
     int __builtin_clz(uint32_t)
     int __builtin_clzll(uint64_t)
 
-cdef void zigzag_encode_int(MemoryBuffer buf, int32_t value):
+cdef void zigzag_encode_int(MemoryWriter buf, int32_t value):
     if value == 0:
         buf.write8(0)
         return
@@ -45,7 +45,7 @@ cdef void zigzag_encode_int(MemoryBuffer buf, int32_t value):
             | ((raw & 0x7f0000000ul) << 4)
         )
 
-cdef void zigzag_encode_long(MemoryBuffer buf, long value):
+cdef void zigzag_encode_long(MemoryWriter buf, long value):
     if value == 0:
         buf.write8(0)
         return

@@ -19,7 +19,7 @@ cdef class UnionType(AvroType):
                         raise ValueError(f"Unions may not have more than one member of type '{ member_type.type_name }'")
                     seen_types.add(member_type)
 
-    cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
+    cdef void binary_buffer_encode(self, MemoryWriter buffer, value):
         cdef size_t i = 0
         cdef AvroType union_type
         for union_type in self.union_types:

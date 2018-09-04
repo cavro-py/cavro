@@ -8,7 +8,7 @@ cdef class MapType(AvroType):
         self.key_type = StringType(schema, 'string', namespace)
         self.value_type = AvroType.for_source(schema, source['values'], namespace)
 
-    cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
+    cdef void binary_buffer_encode(self, MemoryWriter buffer, value):
         if hasattr(value, 'items'):
             value = value.items()
         zigzag_encode_long(buffer, len(value))

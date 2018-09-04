@@ -2,7 +2,7 @@
 cdef class BytesType(AvroType):
     type_name = "bytes"
 
-    cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
+    cdef void binary_buffer_encode(self, MemoryWriter buffer, value):
         if isinstance(value, str):
             value = value.encode('utf-8')
         cdef size_t length = len(value)
@@ -14,7 +14,7 @@ cdef class BytesType(AvroType):
 cdef class StringType(AvroType):
     type_name = "string"
 
-    cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
+    cdef void binary_buffer_encode(self, MemoryWriter buffer, value):
         if isinstance(value, str):
             value = value.encode('utf-8')
         cdef size_t length = len(value)
@@ -32,7 +32,7 @@ cdef class FixedType(NamedType):
         NamedType.__init__(schema, source, namespace)
         self.size = source['size']
 
-    cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
+    cdef void binary_buffer_encode(self, MemoryWriter buffer, value):
         if isinstance(value, str):
             value = value.encode('utf-8')
         cdef size_t length = len(value)

@@ -2,5 +2,5 @@
 cdef class NullType(AvroType):
     type_name = "null"
 
-    cdef binary_buffer_encode(self, MemoryBuffer buffer, value):
+    cdef void binary_buffer_encode(self, MemoryWriter buffer, value):
         return
