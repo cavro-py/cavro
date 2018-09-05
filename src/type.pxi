@@ -20,7 +20,7 @@ cdef class AvroType:
     def __init__(self, schema, source, namespace):
         pass
 
-    cdef void binary_buffer_encode(self, MemoryWriter buffer, value):
+    cdef int binary_buffer_encode(self, MemoryWriter buffer, value) except -1:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement binary_buffer_encode")
 

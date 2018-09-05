@@ -7,6 +7,7 @@ import array
 
 from libc.string cimport memcpy
 
+include "tests/test_buffer.pxi"
 
 cdef array.array byte_buffer_template = array.array('B', [])
 
@@ -94,22 +95,59 @@ cdef class MemoryWriter:
 cdef class MemoryReader:
 
     cdef bytes data
-    cdef uint8_t[:] data_view
-    cdef size_t n_left
+    cdef const uint8_t[:] data_view
+    cdef size_t length
+    cdef size_t cur_pos
 
     def __init__(self, bytes data):
         self.data = data
         self.data_view = data
-        self.n_left = len(data_view)
+        self.length = len(self.data_view)
+        self.cur_pos = 0
 
-    cdef inline void ensure(self, size_t num):
-        if self.n_left < num:
-            raise RuntimeError("Not enough bytes in input data")
+    cdef inline int ensure(self, size_t num) except -1:
+        if self.length - self.cur_pos < num:
+            raise ValueError("Not enough input data to read value")
 
-    cdef uint8_t read8(self):
+    cdef uint8_t read8(self) except? 255:
         self.ensure(1)
         cdef uint8_t value = self.data[self.cur_pos]
         self.cur_pos += 1
         return value
 
-    cdef uint32_t read_to32(self):
+    cdef uint32_t read_to32(self)  except? 0xfffffffe:
+        cdef uint32_t result
+        cdef size_t remaining = self.length - self.cur_pos
+        if remaining == 0:
+            raise ValueError("Not enough input data to read value")
+        elif remaining == 1:
+            result = self.data_view[self.cur_pos]
+            self.cur_pos += 1
+        elif remaining == 2:
+            result = (
+                self.data_view[self.cur_pos]
+                | (self.data_view[self.cur_pos + 1] << 8)
+            )
+            self.cur_pos += 2
+        elif remaining == 3:
+            result = (
+                self.data_view[self.cur_pos]
+                | (self.data_view[self.cur_pos + 1] << 8)
+                | (self.data_view[self.cur_pos + 2] << 16)
+            )
+            self.cur_pos += 3
+        else:
+            result = (
+                self.data_view[self.cur_pos]
+                | (self.data_view[self.cur_pos + 1] << 8)
+                | (self.data_view[self.cur_pos + 2] << 16)
+                | (self.data_view[self.cur_pos + 3] << 24)
+            )
+            self.cur_pos += 4
+        return result
+
+    cdef const uint8_t[:] read_n(self, size_t n):
+        self.ensure(n)
+        cdef const uint8_t[:] val = self.data_view[self.cur_pos:self.cur_pos + n]
+        self.cur_pos += n
+        return val

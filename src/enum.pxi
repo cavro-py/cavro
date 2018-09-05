@@ -23,7 +23,8 @@ cdef class EnumType(NamedType):
         for i, symbol in enumerate(self.symbols):
             self.symbol_indexes[symbol] = i
 
-    cdef void binary_buffer_encode(self, MemoryWriter buffer, value):
+    cdef int binary_buffer_encode(self, MemoryWriter buffer, value) except -1:
+        print(self.symbol_indexes)
         cdef size_t index = self.symbol_indexes[value]
         zigzag_encode_long(buffer, index)
 
