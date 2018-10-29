@@ -2,14 +2,14 @@
 cdef class EnumType(NamedType):
     type_name = 'enum'
 
-    cdef tuple symbols
+    cdef readonly tuple symbols
     cdef dict symbol_indexes
 
     def __init__(self, schema, source, namespace):
         NamedType.__init__(self, schema, source, namespace)
         if not schema.permissive:
             if not isinstance(source['symbols'], list):
-                raise ValueError("Enum symbols must be an array or strings")
+                raise ValueError("Enum symbols must be an array of strings")
             seen_symbols = set()
             for symbol in source['symbols']:
                 if not isinstance(symbol, str):
@@ -23,10 +23,19 @@ cdef class EnumType(NamedType):
         for i, symbol in enumerate(self.symbols):
             self.symbol_indexes[symbol] = i
 
-    cdef int binary_buffer_encode(self, MemoryWriter buffer, value) except -1:
-        print(self.symbol_indexes)
+    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef size_t index = self.symbol_indexes[value]
         zigzag_encode_long(buffer, index)
+
+    cdef binary_buffer_decode(self, Reader buffer):
+        return self.symbols[zigzag_decode_long(buffer)]
+
+    cdef int get_value_fitness(self, value) except -1:
+        try:
+            if value in self.symbol_indexes:
+                return FIT_EXACT
+        except TypeError:
+            return FIT_NONE
 
     def json_encode(self, value):
         if value not in self.symbol_indexes:

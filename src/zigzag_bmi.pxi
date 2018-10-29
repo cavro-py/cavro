@@ -25,27 +25,33 @@ cdef extern from 'stdlib.h':
     int __builtin_clzll(uint64_t)
 
 cdef uint32_t read_varint(MemoryReader buf) except? 0xfffffbad:
-    cdef uint8_t cur
-    cdef shift = 0
+    cdef uint32_t start = buf.read_to32()
+    cdef int n_bytes = count_pack_bits(start)
     cdef uint32_t value
-    while True:
-        cur = buf.read8()
-        value |= (cur & 0xf7) << shift
-        shift += 7
-        if not cur & 0x80:
-            return zigzag_decode_int(value)
+    cdef uint8_t rest
+    if n_bytes < 5:
+        buf.advance(n_bytes)
+        return pack_7_8u(start, n_bytes)
+    else:
+        buf.advance(4)
+        rest = buf.read8()
+        return pack_7_8u(start, n_bytes) | ((rest & 0x0f) << 28)
 
 
 cdef uint64_t read_varlong(MemoryReader buf) except? 0xfffffffffffffbadull:
-    cdef uint8_t cur
-    cdef shift = 0
+    cdef uint64_t start = buf.read_to64()
+    cdef uint64_t rest
+    cdef int n_bytes = count_pack_bits_ull(start)
     cdef uint64_t value
-    while True:
-        cur = buf.read8()
-        value |= (cur & 0xf7) << shift
-        shift += 7
-        if not cur & 0x80:
-            return zigzag_decode_long(value)
+    if n_bytes < 9:
+        buf.advance(n_bytes)
+        return pack_7_8ull(start, n_bytes)
+    else:
+        buf.advance(8)
+        rest = buf.read_to16()
+        buf.advance(2 if rest & 0x80 else 1)
+        return pack_7_8ull(start, n_bytes) | ((rest & 0xFF) << 56)
+
 
 cdef int32_t zigzag_decode_int(MemoryReader buf) except? 0x7ffffbadu:
     cdef uint32_t value = read_varint(buf)
@@ -62,7 +68,7 @@ cdef int zigzag_encode_int(MemoryWriter buf, int32_t value) except -1:
     cdef uint32_t raw = abs(value)
     raw = (raw << 1) - negative
     if raw < 0x80:
-        return buf.write_u8(raw)
+        return buf.write8(raw)
     cdef int n_continuations = (32 - __builtin_clz(raw)) // 7
     cdef int n_bytes = n_continuations + 1
     cdef uint64_t mask = ~(1ull << (n_bytes * 4) << ((n_bytes * 4) - 1ul))
@@ -83,7 +89,7 @@ cdef int zigzag_encode_long(MemoryWriter buf, long value) except -1:
     cdef unsigned long raw = llabs(value)
     raw = (raw << 1) - negative
     if raw < 0x80:
-        return buf.write_u8(raw)
+        return buf.write8(raw)
     cdef int n_continuations = (63 - __builtin_clzll(raw)) // 7
     cdef int n_bytes = n_continuations + 1
     cdef uint64_t mask = ~(1ull << (n_bytes * 4) << ((n_bytes * 4) - 1ul))

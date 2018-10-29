@@ -18,6 +18,20 @@ def test_int_encoding(value, expected):
     schema = cavro.Schema('"int"')
     assert schema.binary_encode(value) == expected
 
+@pytest.mark.parametrize("expected, value", [
+    (0, b'\x00'),
+    (-1, b'\x01'),
+    (1, b'\x02'),
+    (-2, b'\x03'),
+    (2, b'\x04'),
+    (-64, b'\x7f'),
+    (64, b'\x80\x01'),
+    ((2**31)-1, b'\xfe\xff\xff\xff\x0f'),
+    (-(2**31), b'\xff\xff\xff\xff\x0f'),
+])
+def test_int_decoding(value, expected):
+    schema = cavro.Schema('"int"')
+    assert schema.binary_decode(value) == expected
 
 def test_int_overflow():
     schema = cavro.Schema('"int"')
@@ -43,8 +57,10 @@ def test_int_json():
     (2, b'\x04'),
     (-64, b'\x7f'),
     (64, b'\x80\x01'),
+    (92, b'\xb8\x01'),
     ((2**31)-1, b'\xfe\xff\xff\xff\x0f'),
     (-(2**31), b'\xff\xff\xff\xff\x0f'),
+    (3683971297255489547, b'\x96\x80\xb0\xfa\x8a\x98\x8c\xa0\x66'),
     ((2**63)-1, b'\xfe\xff\xff\xff\xff\xff\xff\xff\xff\x01'),
     (-(2**63), b'\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01'),
 ])
@@ -52,6 +68,25 @@ def test_long_encoding(value, expected):
     schema = cavro.Schema('"long"')
     assert schema.binary_encode(value) == expected
 
+
+@pytest.mark.parametrize("expected,value", [
+    (0, b'\x00'),
+    (-1, b'\x01'),
+    (1, b'\x02'),
+    (-2, b'\x03'),
+    (2, b'\x04'),
+    (-64, b'\x7f'),
+    (64, b'\x80\x01'),
+    (92, b'\xb8\x01'),
+    ((2**31)-1, b'\xfe\xff\xff\xff\x0f'),
+    (-(2**31), b'\xff\xff\xff\xff\x0f'),
+    (3683971297255489547, b'\x96\x80\xb0\xfa\x8a\x98\x8c\xa0\x66'),
+    ((2**63)-1, b'\xfe\xff\xff\xff\xff\xff\xff\xff\xff\x01'),
+    (-(2**63), b'\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01'),
+])
+def test_long_decoding(value, expected):
+    schema = cavro.Schema('"long"')
+    assert schema.binary_decode(value) == expected
 
 def test_long_overflow():
     schema = cavro.Schema('"long"')
@@ -91,11 +126,19 @@ def test_double_encoding(value):
 
 def test_float_json():
     schema = cavro.Schema('"float"')
-    assert schema.json_encode(3.14159e2) == "314.159"
-    assert schema.json_encode(31.4159e30) == "3.14159e+31"
+    encoded = schema.json_encode(3.14159e2)
+    assert isinstance(encoded, str)
+    assert float(encoded) == 314.159
+    encoded = schema.json_encode(31.4159e30)
+    assert isinstance(encoded, str)
+    assert float(encoded) == 3.14159e+31
 
 
 def test_double_json():
     schema = cavro.Schema('"double"')
-    assert schema.json_encode(3.14159e2) == "314.159"
-    assert schema.json_encode(31.4159e200) == "3.14159e+201"
+    encoded = schema.json_encode(3.14159e2)
+    assert isinstance(encoded, str)
+    assert float(encoded) == 314.159
+    encoded = schema.json_encode(31.4159e200)
+    assert isinstance(encoded, str)
+    assert float(encoded) == 3.14159e+201

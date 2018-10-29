@@ -18,6 +18,10 @@ def test_duplicate_item_union():
     assert len(avro_type.type.union_types) == 2
     assert avro_type.binary_encode(1) == b"\x00\x02"
 
+def test_duplicate_item_in_union_declared_differently():
+    with pytest.raises(ValueError) as exc:
+        cavro.Schema(['bool', {'type': 'bool'}])
+    assert str(exc.value) == "Unions may not have more than one member of type 'bool'"
 
 def test_simple_binary_encoding():
     schema = cavro.Schema(['int', 'long'])

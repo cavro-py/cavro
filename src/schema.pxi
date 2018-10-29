@@ -1,7 +1,7 @@
 import json
 
 cdef str resolve_namespaced_name(str namespace, str name):
-    if '.' in name:
+    if '.' in name or namespace is None:
         return name
     return f'{namespace}.{name}'
 
@@ -28,10 +28,15 @@ cdef class Schema:
         return self.named_types[resolve_namespaced_name(namespace, name)]
 
     def can_encode(self, value):
-        return self.type.is_value_valid(value)
+        fitness = self.type.get_value_fitness(value)
+        threshold = FIT_POOR if self.permissive else FIT_OK
+        return fitness >= threshold
 
     def binary_encode(self, value):
         return self.type.binary_encode(value)
+
+    def binary_decode(self, bytes src):
+        return self.type.binary_decode(src)
 
     def json_encode(self, value):
         data = self.type.json_encode(value)

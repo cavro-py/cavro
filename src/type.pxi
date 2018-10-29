@@ -1,4 +1,9 @@
 
+cdef int FIT_NONE = 0
+cdef int FIT_POOR = 1
+cdef int FIT_OK = 2
+cdef int FIT_EXACT = 3
+
 cdef class AvroType:
     type_name = NotImplemented
 
@@ -20,24 +25,24 @@ cdef class AvroType:
     def __init__(self, schema, source, namespace):
         pass
 
-    cdef int binary_buffer_encode(self, MemoryWriter buffer, value) except -1:
+    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement binary_buffer_encode")
 
-    cdef binary_buffer_decode(self, MemoryReader buffer):
+    cdef binary_buffer_decode(self, Reader buffer):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement binary_buffer_decode")
 
-    cdef bint is_value_valid(self, value):
+    cdef int get_value_fitness(self, value) except -1:
         raise NotImplementedError(
-            f"{type(self).__name__} does not implement is_value_valid")
+            f"{type(self).__name__} does not implement get_value_fitness")
 
     def binary_encode(self, value):
         cdef MemoryWriter buffer = MemoryWriter()
         self.binary_buffer_encode(buffer, value)
         return buffer.bytes()
 
-    def binary_decode(self,bytes value):
+    def binary_decode(self, bytes value):
         cdef MemoryReader buffer = MemoryReader(value)
         return self.binary_buffer_decode(buffer)
 
@@ -52,27 +57,25 @@ cdef class AvroType:
 
 cdef class NamedType(AvroType):
 
-    cdef str name
-    cdef str namespace
-    cdef list aliases
+    cdef readonly str name
+    cdef readonly str namespace
+    cdef readonly frozenset aliases
 
     def __init__(self, schema, source, namespace):
         cdef Schema schema_t = schema
-        self.name = source['name']
+        cdef str name = source['name']
+        if not schema.permissive:
+            if name in PRIMITIVE_TYPES:
+                raise ValueError(f"'{name}' is not allowed as a name")
+        self.name = name
         self.namespace = source.get('namespace')
-        self.aliases = source.get('aliases')
+        self.aliases = frozenset(source.get('aliases', []))
         schema_t.register_type(self.namespace, self.name, self)
 
 
-include "numeric_types.pxi"
-include "string_types.pxi"
-include "union.pxi"
-include "enum.pxi"
-include "map.pxi"
-include "record.pxi"
-
-
 PRIMITIVE_TYPES = {
+    'null': NullType,
+    'bool': BoolType,
     'int': IntType,
     'long': LongType,
     'float': FloatType,
@@ -84,5 +87,8 @@ PRIMITIVE_TYPES = {
 TYPES_BY_NAME = dict(
     PRIMITIVE_TYPES,
     map=MapType,
-    enum=EnumType
+    enum=EnumType,
+    record=RecordType,
+    fixed=FixedType,
+    array=ArrayType,
 )
