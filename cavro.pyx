@@ -2,11 +2,14 @@
 cimport cython
 from cpython.object cimport Py_SIZE
 from libc.stdint cimport *
+from libc.string cimport memcmp
 
 from cpython cimport array
 import array
 
 from libc.string cimport memcpy
+
+ctypedef bint bool
 
 
 __tests = {}
@@ -30,8 +33,6 @@ def _perf(fn):
     return _perf
 
 
-include "src/packed.pxi"
-
 include "src/io.pxi"
 include "src/buffer.pxi"
 include "src/zigzag.pxi"
@@ -49,8 +50,7 @@ include "src/record.pxi"
 include "src/string_types.pxi"
 include "src/union.pxi"
 
-
-
 include "src/type.pxi"
 include "src/schema.pxi"
 
+include "src/container.pxi"

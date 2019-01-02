@@ -133,7 +133,7 @@ def main():
         except:
             print(schema_json)
             raise
-        print(sch)
+        #print(sch)
 
 
 if __name__ == '__main__':

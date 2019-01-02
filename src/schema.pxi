@@ -14,7 +14,7 @@ cdef class Schema:
     cdef readonly AvroType type
 
     def __init__(self, source, permissive=False):
-        if isinstance(source, str):
+        if isinstance(source, (str, bytes)):
             source = json.loads(source)
         self.permissive = permissive
         self.named_types = {}
@@ -23,6 +23,10 @@ cdef class Schema:
 
     cdef void register_type(self, str namespace, str name, AvroType avro_type):
         self.named_types[resolve_namespaced_name(namespace, name)] = avro_type
+
+    property canonical_form:
+        def __get__(self):
+            return self.type.canonical_form()
 
     def find_type(self, str namespace, str name):
         return self.named_types[resolve_namespaced_name(namespace, name)]
@@ -33,11 +37,19 @@ cdef class Schema:
         return fitness >= threshold
 
     def binary_encode(self, value):
-        return self.type.binary_encode(value)
+        cdef MemoryWriter buffer = MemoryWriter()
+        self.type.binary_buffer_encode(buffer, value)
+        return buffer.bytes()
 
-    def binary_decode(self, bytes src):
-        return self.type.binary_decode(src)
+    def binary_decode(self, bytes value):
+        cdef MemoryReader buffer = MemoryReader(value)
+        return self.type.binary_buffer_decode(buffer)
 
-    def json_encode(self, value):
-        data = self.type.json_encode(value)
-        return json.dumps(data)
+    def binary_read(self, Reader reader):
+        return self.type.binary_buffer_decode(reader)
+
+    def json_encode(self, value, serialize=True, **kwargs):
+        data = self.type.json_format(value)
+        if serialize:
+            return json.dumps(data, **kwargs)
+        return data

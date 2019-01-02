@@ -20,6 +20,13 @@ def test_enum_json_encoding():
         schema.json_encode('d')
 
 
+def test_enum_blank_symbol():
+    schema = cavro.Schema({'type': 'enum', 'name': 'A', 'symbols': ['a', '', 'c']})
+    assert schema.binary_encode('a') == b'\x00'
+    assert schema.binary_encode('') == b'\x02'
+    assert schema.binary_encode('c') == b'\x04'
+
+
 def test_enum_with_duplicate_symbols():
     with pytest.raises(ValueError):
         cavro.Schema({

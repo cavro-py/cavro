@@ -1,5 +1,6 @@
-from libc.float cimport FLT_MAX
+from libc.float cimport FLT_MAX, DBL_MAX
 from cpython cimport bool as py_bool
+from numpy import bool_
 
 from math import isnan, isinf
 
@@ -15,20 +16,26 @@ cdef class BoolType(AvroType):
             buffer.write_u8(0)
 
     cdef object binary_buffer_decode(self, Reader buffer):
-        return bool(buffer.read_u8())
+        return py_bool(buffer.read_u8())
 
     cdef int get_value_fitness(self, value) except -1:
-        if isinstance(value, bool):
+        if isinstance(value, (py_bool, bool_)):
             return FIT_EXACT
         else:
             return FIT_POOR
 
-    def json_encode(self,py_bool value):
-        return value
+    cpdef object _convert_value(self, object value):
+        return py_bool(value)
+
+    def json_format(self, value):
+        return py_bool(value)
 
     def json_decode(self, value):
         cdef py_bool decoded = value
         return decoded
+
+    cdef str canonical_form(self):
+        return '"bool"'
 
 
 cdef class IntType(AvroType):
@@ -59,12 +66,18 @@ cdef class IntType(AvroType):
             return level
         return FIT_NONE
 
-    def json_encode(self,int32_t value):
+    cpdef object _convert_value(self, object value):
+        return int(value)
+
+    def json_format(self,int32_t value):
         return value
 
     def json_decode(self, value):
         cdef int32_t decoded = value
         return decoded
+
+    cdef str canonical_form(self):
+        return '"int"'
 
 
 cdef class LongType(AvroType):
@@ -93,8 +106,14 @@ cdef class LongType(AvroType):
             return level
         return FIT_NONE
 
-    def json_encode(self,int64_t value):
+    cpdef object _convert_value(self, object value):
+        return int(value)
+
+    def json_format(self,int64_t value):
         return value
+
+    cdef str canonical_form(self):
+        return '"long"'
 
 
 cdef class FloatType(AvroType):
@@ -102,24 +121,40 @@ cdef class FloatType(AvroType):
 
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef float float_val = value
-        cdef uint32_t *int_val = <uint32_t*>&float_val
-        buffer.write_to64(int_val[0], 4)
+        cdef uint8_t *int_val = <uint8_t*>&float_val
+        buffer.write_n(4, int_val)
 
     cdef binary_buffer_decode(self, Reader buffer):
-        cdef uint32_t val = buffer.read_to_u32(4).u32
-        return (<float*>(&val))[0]
+        cdef const uint8_t[:] val = buffer.read_n(4)
+        return (<float*>(&val[0]))[0]
 
     cdef int get_value_fitness(self, value) except -1:
         cdef int level
-        if isinstance(value, (float, int)):
+        if isinstance(value, float):
+            level = FIT_EXACT
+        elif isinstance(value, py_bool):
+            return FIT_POOR
+        elif isinstance(value, int):
+            try:
+                value = float(value)
+            except OverflowError:
+                return FIT_NONE
             level = FIT_OK
         else:
             return FIT_NONE
         if value >= -FLT_MAX and value <= FLT_MAX or isnan(value) or isinf(value):
             return level
+        else:
+            return FIT_NONE
 
-    def json_encode(self, value):
+    cpdef object _convert_value(self, object value):
         return float(value)
+
+    def json_format(self, value):
+        return float(value)
+
+    cdef str canonical_form(self):
+        return '"float"'
 
 
 cdef class DoubleType(AvroType):
@@ -127,22 +162,34 @@ cdef class DoubleType(AvroType):
 
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef double float_val = value
-        cdef uint64_t *int_val = <uint64_t*>&float_val
-        buffer.write_to64(int_val[0], 8)
+        cdef uint8_t *int_val = <uint8_t*>&float_val
+        buffer.write_n(8, int_val)
 
     cdef binary_buffer_decode(self, Reader buffer):
-        cdef uint64_t val = buffer.read_to64(8).u64
-        return (<double*>(&val))[0]
+        cdef const uint8_t[:] val = buffer.read_n(8)
+        return (<double*>(&val[0]))[0]
 
     cdef int get_value_fitness(self, value) except -1:
         cdef int level
         if isinstance(value, float):
             return FIT_EXACT
+        elif isinstance(value, py_bool):
+            return FIT_POOR
         elif isinstance(value, int):
+            # This could overflow here int(1e1000), but there is no
+            # data type in avro that can store 1e1000 numerically,
+            # so accepting this value, and then raising on encoding
+            # seems reasonable
             return FIT_OK
         else:
-            return FIT_NONE
+            level = FIT_NONE
 
-    def json_encode(self, value):
+    cpdef object _convert_value(self, object value):
         return float(value)
+
+    def json_format(self, value):
+        return float(value)
+
+    cdef str canonical_form(self):
+        return '"double"'
 

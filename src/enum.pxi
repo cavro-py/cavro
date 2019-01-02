@@ -37,7 +37,18 @@ cdef class EnumType(NamedType):
         except TypeError:
             return FIT_NONE
 
-    def json_encode(self, value):
+    cpdef object _convert_value(self, object value):
+        # if value is valid for type, then it needs no conversion
+        return value
+
+    def json_format(self, value):
         if value not in self.symbol_indexes:
             raise KeyError(f"'{value}' invalid for enum")
         return value
+
+    cdef str canonical_form(self):
+        return dict_to_canonical({
+            'type': 'enum',
+            'name': self.get_type_name(),
+            'symbols': self.symbols
+        })

@@ -4,6 +4,7 @@ import string
 import struct
 import sys
 import io
+from numpy.testing import assert_almost_equal
 
 import cavro
 
@@ -39,7 +40,7 @@ def make_fixed_val(ty, energy):
     return random.bytes(ty.size)
 
 def make_record_val(ty, energy):
-    return {f.name: make_value_for_type(f.type, energy-1) for f in ty.fields}
+    return ty.record({f.name: make_value_for_type(f.type, energy-1) for f in ty.fields})
 
 def make_value_for_type(ty, energy):
     makers = {
@@ -74,22 +75,69 @@ def de_record(val):
         return "INF"
     return val
 
+def almost_equal(a, b, diffval=None):
+    if diffval is None:
+        diffval = []
+    if not isinstance(a, type(b)) and not isinstance(b, type(a)):
+        diffval.append(('types', type(a), type(b), a, b))
+        return False
+    if isinstance(a, list):
+        return all(almost_equal(ca, cb, diffval) for ca, cb in zip(a, b))
+    if isinstance(a, dict):
+        if set(a.keys()) != set(b.keys()):
+            diffval.append(('keys', a.keys(), b.keys()))
+            return False
+        for key in a.keys():
+            if not almost_equal(a[key], b[key], diffval):
+                diffval.append(('values', a[key], b[key]))
+                return False
+        return True
+    if isinstance(a, float):
+        if abs(b-a) > 1e-10 and abs(b-a) > (max(abs(a), abs(b)) * 0.01):
+            diffval.append(('float', a, b, abs(b-a)))
+            return False
+        return True
+    else:
+        if b != a:
+            diffval.append(('value', type(a), a, b))
+            return False
+        return True
+
+
 def main():
     num = 0
     while True:
         try:
             tmp = io.StringIO()
-            sch_json = schema.make_schema_json(10)
-            print("SCH:", repr(sch_json)[:1024], file=tmp)
+            sch_json = schema.make_schema_json(5)
             sch = cavro.Schema(sch_json)
-            value = make_value_for_type(sch.type, 10)
-            print("VALUE:", repr(value)[:1024], file=tmp)
-            encoded = sch.binary_encode(value)
-            print("ENCODED:", encoded, file=tmp)
-            decoded = sch.binary_decode(encoded)
-            print("DECODED:", repr(decoded)[:1024], file=tmp)
+            value = make_value_for_type(sch.type, 5)
+            try:
+                encoded = sch.binary_encode(value)
+            except:
+                print(sch_json)
+                print(value)
+                raise
+            try:
+                decoded = sch.binary_decode(encoded)
+            except:
+                print(sch_json, value, encoded)
+                raise
             de_recorded = de_record(decoded)
-            assert de_recorded == de_record(value), f"{de_recorded} != {value}"
+            info = []
+            equal = almost_equal(de_recorded, de_record(value), info)
+            if not equal:
+                print("----------- SCHEMA -------------")
+                print(sch_json)
+                print("\n----------- VALUE ---------------")
+                print(value)
+                print("\n----------- DECODED ---------------")
+                print(decoded)
+                print("\n----------- DECODED DATA ---------------")
+                print(de_recorded)
+                print("\n----------- INFO ---------------")
+                print(info)
+                return
         except:
             print(tmp.getvalue())
             raise

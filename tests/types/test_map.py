@@ -26,3 +26,18 @@ def test_map_non_string_keys():
         schema.binary_encode({1: 2})
     with pytest.raises(TypeError) as exc:
         schema.binary_encode({('x', ): 2})
+
+def test_map_from_fuzz_1():
+    schema = cavro.Schema({"type": "map", "values": [
+        {"type": "string"},
+        {"name": "A", "type": "record", "fields": [{"name": "a", "type": "long"}]},
+        {"type": "map", "values": "float"},
+    ]})
+    assert schema.binary_encode({'x': {'a': 1}}) == bytesx("""
+        02  // 1 map item
+        02 x // key = x
+        02   // union index 1
+        02   // a = 1
+        00  // end of map
+    """)
+

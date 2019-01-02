@@ -2,7 +2,7 @@
 @_perf
 def _perf(add):
     def _test_zigzag_perf(const uint64_t mask):
-        from time import clock
+        from time import perf_counter_ns
         import os
         cdef random_t state
 
@@ -15,25 +15,25 @@ def _perf(add):
         cdef MemoryReader reader
 
         cdef size_t total_nums = 0
-        cdef int n
+        cdef size_t n
         cdef uint64_t i
         cdef uint64_t out_state = 0
-        t_a = clock()
+        t_a = perf_counter_ns()
         for i in range(BATCH_SIZE):
             given = (<uint64_t>rand(&state) | (<uint64_t>rand(&state) << 32)) & mask
             zigzag_encode_long(writer, given)
             total_nums += 1
-        write_time = clock() - t_a
-        t_a = clock()
+        write_time = perf_counter_ns() - t_a
+        t_a = perf_counter_ns()
         reader = MemoryReader(writer.bytes())
-        copy_time = clock() - t_a
-        t_a = clock()
+        copy_time = perf_counter_ns() - t_a
+        t_a = perf_counter_ns()
         for n in range(total_nums):
             out_state ^= zigzag_decode_long(reader)
-        read_time = clock() - t_a
+        read_time = perf_counter_ns() - t_a
 
-        write_perf = (1_000_000_000 * write_time) / BATCH_SIZE
-        read_perf = (1_000_000_000 * read_time) / BATCH_SIZE
+        write_perf = (write_time) / BATCH_SIZE
+        read_perf = (read_time) / BATCH_SIZE
         print(f"{hex(mask)}: {out_state}: write: {write_perf} ns, copy: {copy_time} s, read: {read_perf} ns")
 
     for mask in [

@@ -142,3 +142,30 @@ def test_double_json():
     encoded = schema.json_encode(31.4159e200)
     assert isinstance(encoded, str)
     assert float(encoded) == 3.14159e+201
+
+@pytest.mark.parametrize('value,encodable', [
+    (3.14, True),
+    (3, True),
+    (-3.14, True),
+    (1e100, True),
+    (True, False),
+    ("100", False),
+    (1000 ** 1000, True), # see comment in code
+])
+def test_double_can_encode(value, encodable):
+    schema = cavro.Schema('"double"')
+    assert schema.can_encode(value) == encodable
+
+@pytest.mark.parametrize('value,encodable', [
+    (3.14, True),
+    (3, True),
+    (-3.14, True),
+    (3e38, True),
+    (1e100, False),
+    ("100", False),
+    (True, False),
+    (1000 ** 1000, False),
+])
+def test_float_can_encode(value, encodable):
+    schema = cavro.Schema('"float"')
+    assert schema.can_encode(value) == encodable

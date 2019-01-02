@@ -29,21 +29,6 @@ cdef bytes boring_varint_encoder(uint64_t val):
 
 @_tests
 def _tests(add):
-    def test_packers(uint32_t mask):
-        cdef random_t state
-        cdef uint32_t num
-        cdef uint32_t pdep_val, sw_val
-        cdef int n
-        cdef int i
-        for n in range(1, 5):
-            for i in range(50_000):
-                num = rand(&state) & mask
-                pdep_val = _pdep_pack_7_8u(num, n)
-                sw_val = _sw_pack_7_8u(num, n)
-                if pdep_val != sw_val:
-                    raise AssertionError(f"{n}:\n>> {ubin(num,4)}\n   {ubin(pdep_val, 4)}\n!= {ubin(sw_val,4)}")
-    for mask in [0x7f, 0x7fff, 0x7fffff, 0x7fffffff, UINT32_MAX]:
-        add(test_packers, mask)
 
     def test_readvarint(uint32_t mask):
         cdef random_t state
