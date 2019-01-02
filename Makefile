@@ -24,6 +24,6 @@ clean:
 	rm -rf afl/a.out*
 	- rm afl/cavro*.so
 	- rm cavro*.so
-	#find ./ -name __pycache__ -exec rm -rf '{}' \;
+	- find ./ -name __pycache__ -exec rm -rf '{}' \;
 
 .PHONY: test clean benchmark

@@ -1,7 +1,6 @@
 
 cdef array.array byte_buffer_template = array.array('B', [])
 
-
 @cython.final
 cdef class MemoryWriter(Writer):
 

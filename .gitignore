@@ -1,6 +1,7 @@
 # Cavro specific
 cavro.c
 data/
+afl/graph/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
