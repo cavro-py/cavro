@@ -1,5 +1,5 @@
 cython
 numpy
 
-avro [test]
-pytest [test]
+avro
+pytest

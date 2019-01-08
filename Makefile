@@ -5,7 +5,7 @@ data-test: cavro.cpython-36m-darwin.so
 	PYTHONPATH=. python3 tmp/read_data.py
 
 benchmark: cavro.cpython-36m-darwin.so
-	PYTHONPATH=. python3 benchmark/bench.py
+	PYTHONPATH=. python3 benchmark/main.py
 
 perf: cavro.cpython-36m-darwin.so
 	PYTHONPATH=. python3 perf.py

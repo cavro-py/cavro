@@ -1,0 +1,3 @@
+fastavro
+avro-python3
+gitpython
