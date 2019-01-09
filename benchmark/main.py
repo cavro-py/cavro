@@ -1,8 +1,11 @@
-from collections import defaultdict
+from collections import defaultdict, namedtuple
+import os
+import json
 import random
 import time
 import numpy
 from benchmark.bulk import Bulk
+
 
 def run_test(tester, name, fn):
     label = f'| {tester.NAME} {name}: '
@@ -16,7 +19,7 @@ def run_test(tester, name, fn):
     return taken
 
 
-NUM_RUNS = 3
+NUM_RUNS = 2
 METHODS = ['avro', 'cavro', 'fastavro']
 def run_benchmark(test_classes):
     results = defaultdict(lambda: defaultdict(set))
@@ -32,7 +35,7 @@ def run_benchmark(test_classes):
     for tester, name, fn in tests:
         results[tester.NAME][name].add(run_test(tester, name, fn))
     print("".center(60, "="))
-    interpret_results(results)
+    return interpret_raw_results(results)
 
 
 def summarize(vals):
@@ -40,15 +43,42 @@ def summarize(vals):
     return a.min(), a.std()
 
 
-def interpret_results(results):
-    now = time.time()
-    for test, method_results in results.items():
-        summaries = {meth: summarize(r) for meth, r in method_results.items()}
-        print(summaries)
+Result = namedtuple("Result", ['min', 'std', 'normalized', 'timings'])
+def interpret_raw_results(results):
+    test_results = defaultdict(dict)
+    for test, lib_results in results.items():
+        avro_time, _ = summarize(lib_results['avro'])
+        for library, results in lib_results.items():
+            min_val, std_val = summarize(results)
+            result = Result(min_val, std_val, min_val/avro_time, tuple(results))
+            test_results[test][library] = result._asdict()
+    return test_results
+
+def print_results(results):
+    print("Benchmark results")
+    for test, test_results in results.items():
+        print(f"\x1b[1m{test}:\x1b[0m")
+        for library, result in sorted(test_results.items()):
+            norm_speed = result['normalized']
+            color = 1 if norm_speed == 1 else 31 if norm_speed > 1 else 32
+            print(f"\t\x1b[{color};1m{library}: {norm_speed:.2f}x\x1b[0m")
+
+def store_results(results):
+    from github import Github
+    g = Github(os.environ['GITHUB_TOKEN'])
+    results_str = json.dumps(results, indent=2)
+    #repo = g.get_user('stestagg').get_repo('cavro')
+    #master = repo.get_git_ref('heads/master')
+    #blob = repo.create_git_blob(results_str, 'utf-8')
+    #import ipdb; ipdb.set_trace()
+
 
 
 def main():
-    run_benchmark([Bulk])
+    all_results = run_benchmark([Bulk])
+    print_results(all_results)
+    if 'GITHUB_TOKEN' in os.environ:
+        store_results(all_results)
 
 
 if __name__ == '__main__':

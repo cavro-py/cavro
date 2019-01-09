@@ -1,22 +1,26 @@
-test: cavro.cpython-36m-darwin.so
+PYVER=$(shell python -c 'import sys;v=sys.version_info;print(f"{v.major}{v.minor}")')
+SOFILE=cavro.cpython-$(PYVER)m-darwin.so
+
+test: $(SOFILE)
+	tree -a
 	PYTHONPATH=. pytest -svx
 
-data-test: cavro.cpython-36m-darwin.so
+data-test: $(SOFILE)
 	PYTHONPATH=. python3 tmp/read_data.py
 
-benchmark: cavro.cpython-36m-darwin.so
+benchmark: $(SOFILE)
 	PYTHONPATH=. python3 benchmark/main.py
 
-perf: cavro.cpython-36m-darwin.so
+perf: $(SOFILE)
 	PYTHONPATH=. python3 perf.py
 
-fuzz: cavro.cpython-36m-darwin.so
+fuzz: $(SOFILE)
 	(cd fuzz && PYTHONPATH=.. python3 values.py)
 
 cavro.pyx: src/* src/tests/*
 	touch cavro.pyx
 
-cavro.cpython-36m-darwin.so: cavro.pyx
+$(SOFILE): cavro.pyx
 	python3 setup.py build_ext --inplace
 
 clean:

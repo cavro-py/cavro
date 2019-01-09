@@ -2,8 +2,6 @@ import random
 import os
 from time import perf_counter
 
-from benchmark.common import run_benchmark
-
 import avro.datafile
 import avro.io
 import fastavro
@@ -15,7 +13,7 @@ class Bulk:
 
     def avro(self):
         projects = set()
-        left = 100
+        left = 1000
         with open(self.BULK_FILE, 'rb') as fh:
             reader = avro.datafile.DataFileReader(fh, avro.io.DatumReader())
             for record in reader:
