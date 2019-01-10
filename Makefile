@@ -2,6 +2,7 @@ PYVER=$(shell python -c 'import sys;v=sys.version_info;print(f"{v.major}{v.minor
 SOFILE=cavro.cpython-$(PYVER)m-darwin.so
 
 test: $(SOFILE)
+	apk add tree
 	tree -a
 	PYTHONPATH=. pytest -svx
 
