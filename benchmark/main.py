@@ -93,6 +93,7 @@ def store_results(results):
     commit_hash = repo.head.target
     ref_name = f'refs/perf/{commit_hash}'
     if 'GITHUB_TOKEN' in os.environ:
+        print("Storing results in github repo")
         g = github.Github(os.environ['GITHUB_TOKEN'])
         g.FIX_REPO_GET_GIT_REF = False
         gh_repo = g.get_user('stestagg').get_repo('cavro')
@@ -104,6 +105,7 @@ def store_results(results):
             results['previous'] = existing_ref.object.sha
             existing_ref.edit(_make_gh_blob(gh_repo, results))
     else:
+        print("Storing results in local repo")
         try:
             existing_ref = repo.references[ref_name]
         except KeyError:
