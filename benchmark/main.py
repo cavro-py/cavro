@@ -68,9 +68,9 @@ def print_results(results):
     for test, test_results in results.items():
         print(f"\x1b[1m{test}:\x1b[0m")
         for library, result in sorted(test_results.items()):
-            norm_speed = result['normalized']
-            color = 1 if norm_speed == 1 else 31 if norm_speed > 1 else 32
-            print(f"\t\x1b[{color};1m{library}: {norm_speed:.2f}x\x1b[0m")
+            norm_speed = 1/result['normalized']
+            color = 1 if norm_speed == 1 else 31 if norm_speed < 1 else 32
+            print(f"\t\x1b[{color};1m{library}: {norm_speed:.2f}x\x1b[0m faster")
 
 def _make_blob(repo, data):
     data_str = json.dumps(data, indent=2)
