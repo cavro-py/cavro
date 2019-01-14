@@ -1,5 +1,5 @@
 cython
 numpy
 
-avro
+avro-python3
 pytest

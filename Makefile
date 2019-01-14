@@ -1,4 +1,4 @@
-PYVER=$(shell python -c 'import sys;v=sys.version_info;print(f"{v.major}{v.minor}")')
+PYVER=$(shell python3 -c 'import sys;v=sys.version_info;print(f"{v.major}{v.minor}")')
 SOFILE=cavro.cpython-$(PYVER)m-darwin.so
 
 test: $(SOFILE)
@@ -8,6 +8,7 @@ data-test: $(SOFILE)
 	PYTHONPATH=. python3 tmp/read_data.py
 
 benchmark: $(SOFILE)
+	pip install -r benchmark/requirements.txt
 	PYTHONPATH=. python3 benchmark/main.py
 
 perf: $(SOFILE)
