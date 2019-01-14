@@ -84,6 +84,7 @@ def _make_gh_blob(repo, data):
 
 
 def store_results(results):
+    results['now'] = time.time()
     repo = pygit2.Repository('.')
     for filepath, status in repo.status().items():
         # This is a bad way of checking flags, but seems sufficient for now..

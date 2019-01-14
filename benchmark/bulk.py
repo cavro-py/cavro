@@ -10,7 +10,7 @@ import cavro
 class Bulk:
     NUM_RUNS = 3
     NAME = "bulk"
-    
+
     BULK_FILE = os.path.join(os.path.dirname(__file__), 'pypi_downloads.avro')
 
     def avro(self):
