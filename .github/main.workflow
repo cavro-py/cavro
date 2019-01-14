@@ -18,5 +18,5 @@ action "Run Benchmark" {
   uses = "actions/docker/cli@c08a5fc9e0286844156fefff2c141072048141f6"
   needs = ["If master"]
   secrets = ["GITHUB_TOKEN"]
-  args = "run --rm stestagg/cavro -c 'make benchmark'"
+  args = "run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make benchmark'"
 }
