@@ -2,8 +2,12 @@ PYVER=$(shell python3 -c 'import sys;v=sys.version_info;print(f"{v.major}{v.mino
 SOFILE=cavro.cpython-$(PYVER)m-darwin.so
 
 test: $(SOFILE)
-	git remote
 	PYTHONPATH=. pytest -svx
+	git checkout perf
+	echo a > test.txt
+	git add test.txt
+	git commit -m test
+	git push origin perf
 
 data-test: $(SOFILE)
 	PYTHONPATH=. python3 tmp/read_data.py
