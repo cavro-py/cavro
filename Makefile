@@ -6,9 +6,9 @@ test: $(SOFILE)
 	git checkout perf
 	echo a > test.txt
 	git add test.txt
-	git commit -m test
 	git config --global user.email "bot@cavro.io"
 	git config --global user.name "Github Bot"
+	git commit -m test
 	git push origin perf
 
 data-test: $(SOFILE)
