@@ -2,6 +2,7 @@ FROM alpine
 
 RUN apk add g++ make python3 libffi-dev libgit2-dev
 RUN apk add python3-dev py3-numpy
+RUN apk add git
 
 COPY requirements.txt /root/requirements.txt
 
