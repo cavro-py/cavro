@@ -116,7 +116,7 @@ cdef class NamedType(AvroType):
 
 PRIMITIVE_TYPES = {
     'null': NullType,
-    'bool': BoolType,
+    'boolean': BoolType,
     'int': IntType,
     'long': LongType,
     'float': FloatType,

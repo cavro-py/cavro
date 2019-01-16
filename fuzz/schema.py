@@ -4,7 +4,7 @@ import sys
 from numpy import random
 import cavro
 
-from rand import percent, weighted, make_name
+from fuzz.rand import percent, weighted, make_name, make_rand_str
 
 
 def make_simple(name):
@@ -16,7 +16,7 @@ def make_simple(name):
 
 
 make_null = make_simple('null')
-make_bool = make_simple('bool')
+make_bool = make_simple('boolean')
 make_int = make_simple('int')
 make_long = make_simple('long')
 make_float = make_simple('float')
@@ -52,7 +52,7 @@ def make_field(energy):
     if percent(10):
         val['order'] = weighted({'ascending': 1, 'descending': 2, 'ignore': 1})
     if percent(40):
-        val['doc'] = make_name(100)
+        val['doc'] = make_rand_str(100)
     return val
 
 
@@ -122,18 +122,17 @@ def make_type(energy, without=frozenset()):
 
 
 def make_schema_json(energy=10):
-    return json.dumps(make_type(energy))
+    return json.dumps(make_type(energy), indent=2)
 
 
 def main():
     for i in range(100):
-        schema_json = make_schema_json(5)
+        schema_json = make_schema_json(10)
         try:
             sch = cavro.Schema(schema_json)
         except:
             print(schema_json)
             raise
-        #print(sch)
 
 
 if __name__ == '__main__':

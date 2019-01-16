@@ -3,19 +3,11 @@ SOFILE=cavro.cpython-$(PYVER)m-darwin.so
 
 test: $(SOFILE)
 	PYTHONPATH=. pytest -svx
-	git checkout perf
-	echo a > test.txt
-	git add test.txt
-	git config --global user.email "bot@cavro.io"
-	git config --global user.name "Github Bot"
-	git commit -m test
-	git push origin perf
 
 data-test: $(SOFILE)
 	PYTHONPATH=. python3 tmp/read_data.py
 
 benchmark: $(SOFILE)
-	pip install -r benchmark/requirements.txt
 	PYTHONPATH=. python3 benchmark/main.py
 
 perf: $(SOFILE)

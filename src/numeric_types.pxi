@@ -7,7 +7,7 @@ from math import isnan, isinf
 cdef float FLOAT_INT_THRESHOLD = 0.001
 
 cdef class BoolType(AvroType):
-    type_name = "bool"
+    type_name = "boolean"
 
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         if value:
@@ -35,7 +35,7 @@ cdef class BoolType(AvroType):
         return decoded
 
     cdef str canonical_form(self):
-        return '"bool"'
+        return '"boolean"'
 
 
 cdef class IntType(AvroType):

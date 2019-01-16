@@ -125,7 +125,7 @@ def test_double_encoding(value):
 
 
 def test_float_json():
-    schema = cavro.Schema('"float"')
+    schema = cavro.Schema('{"type": "float"}')
     encoded = schema.json_encode(3.14159e2)
     assert isinstance(encoded, str)
     assert float(encoded) == 314.159

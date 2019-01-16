@@ -9,14 +9,14 @@ from numpy.testing import assert_almost_equal
 import cavro
 
 from numpy import random
-import schema
-from rand import percent, weighted, make_name, randint
+from fuzz import schema
+from fuzz.rand import percent, weighted, make_rand_str, randint
 
 
 def make_map_val(ty, energy):
     out = {}
     for i in range(randint(0, energy * 2)):
-        out[make_name()] = make_value_for_type(ty.value_type, energy-1)
+        out[make_rand_str()] = make_value_for_type(ty.value_type, energy-1)
     return out
 
 

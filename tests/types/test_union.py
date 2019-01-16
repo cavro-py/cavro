@@ -20,8 +20,8 @@ def test_duplicate_item_union():
 
 def test_duplicate_item_in_union_declared_differently():
     with pytest.raises(ValueError) as exc:
-        cavro.Schema(['bool', {'type': 'bool'}])
-    assert str(exc.value) == "Unions may not have more than one member of type 'bool'"
+        cavro.Schema(['boolean', {'type': 'boolean'}])
+    assert str(exc.value) == "Unions may not have more than one member of type 'boolean'"
 
 def test_simple_binary_encoding():
     schema = cavro.Schema(['int', 'long'])

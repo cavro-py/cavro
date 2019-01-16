@@ -1,4 +1,4 @@
-
+import numpy
 import collections
 
 cdef class ArrayType(AvroType):
@@ -11,7 +11,7 @@ cdef class ArrayType(AvroType):
         self.item_type = AvroType.for_source(schema, source['items'], namespace)
 
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
-        if value:
+        if len(value):
             zigzag_encode_long(buffer, len(value))
             for item in value:
                 self.item_type.binary_buffer_encode(buffer, item)
@@ -32,7 +32,7 @@ cdef class ArrayType(AvroType):
 
     cdef int get_value_fitness(self, value) except -1:
         cdef int level = FIT_OK
-        if isinstance(value, (list, tuple)):
+        if isinstance(value, (list, tuple, numpy.ndarray)):
             level = FIT_EXACT
         elif isinstance(value, dict):
             level = FIT_POOR

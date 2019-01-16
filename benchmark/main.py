@@ -4,7 +4,7 @@ import json
 import random
 import time
 import numpy
-from benchmark.bulk import Bulk
+from benchmark import simple, many_numbers, complex, pypifile
 
 import github
 import pygit2
@@ -13,13 +13,17 @@ import pygit2
 def run_test(tester, name, fn):
     label = f'| {tester.NAME} {name}: '
     print(label, end='', flush=True)
-    before = time.perf_counter()
-    fn()
-    after = time.perf_counter()
-    taken = after - before
-    rest = "%.2fs" % taken
-    print((rest).ljust(59 - len(label)) + "|")
-    return taken
+    try:
+        before = time.perf_counter()
+        fn()
+        after = time.perf_counter()
+    except:
+        print("FAIL".ljust(59 - len(label)) + "|")
+    else:
+        taken = after - before
+        rest = "%.2fs" % taken
+        print((rest).ljust(59 - len(label)) + "|")
+        return taken
 
 METHODS = ['avro', 'cavro', 'fastavro']
 
@@ -57,9 +61,11 @@ def interpret_raw_results(results):
     for test, lib_results in results.items():
         avro_time, _ = summarize(lib_results['avro'])
         for library, results in lib_results.items():
-            min_val, std_val = summarize(results)
-            result = Result(min_val, std_val, min_val/avro_time, tuple(results))
-            test_results[test][library] = result._asdict()
+            results = {r for r in results if r is not None}
+            if results:
+                min_val, std_val = summarize(results)
+                result = Result(min_val, std_val, min_val/avro_time, tuple(results))
+                test_results[test][library] = result._asdict()
     return test_results
 
 
@@ -69,13 +75,14 @@ def print_results(results):
         print(f"\x1b[1m{test}:\x1b[0m")
         for library, result in sorted(test_results.items()):
             norm_speed = 1/result['normalized']
-            color = 1 if norm_speed == 1 else 31 if norm_speed < 1 else 32
-            print(f"\t\x1b[{color};1m{library}: {norm_speed:.2f}x\x1b[0m faster")
+            print(f"\t\x1b[1;1m{library}: {norm_speed:.2f}x\x1b[0m faster")
+
 
 def _make_blob(repo, data):
     data_str = json.dumps(data, indent=2)
     blob_ref = repo.create_blob(data_str)
     return blob_ref
+
 
 def _make_gh_blob(repo, data):
     data_str = json.dumps(data, indent=2)
@@ -117,7 +124,16 @@ def store_results(results):
 
 
 def main():
-    all_results = run_benchmark([Bulk])
+    all_results = run_benchmark([
+        many_numbers.ManyNumbersEncode,
+        many_numbers.ManyNumbersDecode,
+        complex.ComplexSchema,
+        pypifile.PypiFile,
+        simple.SimpleRecordEncode,
+        simple.SimpleRecordEncodeDict,
+        simple.SimpleRecordDecode,
+        simple.SimpleRecordDecodeDict,
+    ])
     print_results(all_results)
     store_results(all_results)
 

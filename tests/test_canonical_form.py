@@ -7,7 +7,7 @@ import pytest
     [
         ('"null"', '"null"'),
         ({'type': 'null'}, '"null"'),
-        ({'type': 'bool'}, '"bool"'),
+        ({'type': 'boolean'}, '"boolean"'),
         ({'type': 'int'}, '"int"'),
         ({'type': 'long'}, '"long"'),
         ({'type': 'float'}, '"float"'),
