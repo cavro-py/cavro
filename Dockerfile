@@ -15,4 +15,6 @@ WORKDIR /root
 
 RUN cd /root && make test
 
+RUN pip3 install -r /root/benchmark/requirements.txt
+
 ENTRYPOINT ["/bin/sh"]
