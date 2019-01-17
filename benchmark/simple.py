@@ -37,6 +37,12 @@ def make_readings(num):
     return readings
 
 class SimpleRecordEncodeDict:
+
+    """
+    Measure the time taken to encode 100,000 dicts using a simple (3 field)
+    record schema.
+    """
+
     NUM_RUNS = 3
     NAME = "simple_record_encode_dict"
 
@@ -64,6 +70,12 @@ class SimpleRecordEncodeDict:
 
 
 class SimpleRecordEncode(SimpleRecordEncodeDict):
+
+    """
+    Measure the time taken to encode 100,000 records using a simple (3 field)
+    record schema. This takes advantage of cavro's class-based record types
+    """
+
     NAME = "simple_record_encode"
 
     def __init__(self):
@@ -80,6 +92,12 @@ class SimpleRecordEncode(SimpleRecordEncodeDict):
 
 
 class SimpleRecordDecode:
+
+    """
+    Measure the time taken to decode 100,000 binary-encoded records using
+    the simple schema, to each library's native record format
+    """
+
     NUM_RUNS = 3
     NAME = "simple_record_decode"
 
@@ -109,6 +127,12 @@ class SimpleRecordDecode:
 
 
 class SimpleRecordDecodeDict(SimpleRecordDecode):
+
+    """
+    Measure the time taken to decode 100,000 binary-encoded records using
+    the simple schema, to a dict
+    """
+
     NAME = "simple_record_decode_dict"
 
     def cavro(self):

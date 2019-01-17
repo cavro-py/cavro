@@ -123,20 +123,22 @@ def store_results(results):
             existing_ref.set_target(_make_blob(repo, results))
 
 
+ALL_TEST_CLASSES = [
+    many_numbers.ManyNumbersEncode,
+    many_numbers.ManyNumbersDecode,
+    complex.ComplexSchema,
+    pypifile.PypiFile,
+    simple.SimpleRecordEncode,
+    simple.SimpleRecordEncodeDict,
+    simple.SimpleRecordDecode,
+    simple.SimpleRecordDecodeDict,
+]
+
+
 def main():
-    all_results = run_benchmark([
-        many_numbers.ManyNumbersEncode,
-        many_numbers.ManyNumbersDecode,
-        complex.ComplexSchema,
-        pypifile.PypiFile,
-        simple.SimpleRecordEncode,
-        simple.SimpleRecordEncodeDict,
-        simple.SimpleRecordDecode,
-        simple.SimpleRecordDecodeDict,
-    ])
+    all_results = run_benchmark(ALL_TEST_CLASSES)
     print_results(all_results)
     store_results(all_results)
-
 
 if __name__ == '__main__':
     main()

@@ -8,6 +8,12 @@ import fastavro
 import cavro
 
 class PypiFile:
+
+    """
+    Measure the time taken to read all records from one file (11 Mb) of pypi
+    download logs, sourced from google bigquery public dataset
+    """
+
     NUM_RUNS = 3
     NAME = "pypi_file"
 
