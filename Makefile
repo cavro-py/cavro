@@ -10,6 +10,9 @@ data-test: $(SOFILE)
 benchmark: $(SOFILE)
 	PYTHONPATH=. python3 benchmark/main.py
 
+upload_benchmark:
+	PYTHONPATH=. python3 benchmark/upload_benchmark.py
+
 perf: $(SOFILE)
 	PYTHONPATH=. python3 perf.py
 

@@ -1,7 +1,9 @@
+import os
 import json
 import sys
 
 import pygit2
+import github
 from itertools import chain
 
 
@@ -35,10 +37,37 @@ def format_results(results):
             })
     return formatted
 
+
+def save_formatted(results):
+    print('Writing benchmarks to benchmark.json')
+    with open("benchmark.json", "w") as fh:
+        fh.write(json.dumps(results, indent=2))
+
+
+def upload_formatted(results):
+    print("Uploading formatted results")
+    results_blob = json.dumps(results)
+    g = github.Github(os.environ['GITHUB_TOKEN'])
+    g.FIX_REPO_GET_GIT_REF = False
+    gh_repo = g.get_user('stestagg').get_repo('cavro')
+
+    current_file = gh_repo.get_contents('benchmark_results.json', ref='docs')
+    gh_repo.update_file(
+        current_file.path,
+        'Automated upload of benchmark results',
+        results_blob,
+        current_file.sha,
+        branch='docs'
+    )
+
+
 def main():
     results = get_results()
     formatted = format_results(results)
-    print(formatted)
+    if 'GITHUB_TOKEN' in os.environ:
+        upload_formatted(formatted)
+    else:
+        save_formatted(formatted)
 
 if __name__ == '__main__':
     sys.exit(main())
