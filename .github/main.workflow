@@ -1,6 +1,9 @@
 workflow "Build&Test" {
   on = "push"
-  resolves = ["If master", "Run Benchmark"]
+  resolves = [
+    "If master",
+    "Upload updated results",
+  ]
 }
 
 action "Build & Test" {
@@ -19,4 +22,11 @@ action "Run Benchmark" {
   needs = ["If master"]
   secrets = ["GITHUB_TOKEN"]
   args = "run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make benchmark'"
+}
+
+action "Upload updated results" {
+  uses = "actions/docker/cli@c08a5fc9e0286844156fefff2c141072048141f6"
+  needs = ["Run Benchmark"]
+  args = "run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make upload_benchmark'"
+  secrets = ["GITHUB_TOKEN"]
 }
