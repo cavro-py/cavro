@@ -110,6 +110,6 @@ An Avro serializer/deserializer for python written in cython.
  [ ] Reader error handling
 
 
-Missing splitting map into blocks on encode
+_Missing_ splitting map into blocks on encode
 
 
