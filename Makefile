@@ -11,6 +11,7 @@ benchmark: $(SOFILE)
 	PYTHONPATH=. python3 benchmark/main.py
 
 upload_benchmark:
+	pip3 install jinja2
 	PYTHONPATH=. python3 benchmark/update_docs.py
 
 perf: $(SOFILE)
