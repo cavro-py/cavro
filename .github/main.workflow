@@ -26,6 +26,6 @@ action "Run Benchmark" {
 action "Upload updated results" {
   uses = "actions/docker/cli@c08a5fc9e0286844156fefff2c141072048141f6"
   needs = ["Run Benchmark"]
-  args = "run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make upload_benchmark'"
+  args = "run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make upload_benchmark_docker'"
   secrets = ["GITHUB_TOKEN"]
 }
