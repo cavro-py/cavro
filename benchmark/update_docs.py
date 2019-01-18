@@ -1,4 +1,6 @@
 import os
+import base64
+from datetime import datetime
 import json
 import jinja2
 from collections import defaultdict
@@ -12,7 +14,7 @@ matplotlib.use('SVG')
 import matplotlib.pyplot as plt
 plt.rcParams['svg.fonttype'] = 'none'
 plt.rcParams['font.family'] = 'Verdana'
-plt.rcParams['font.size'] = 8
+plt.rcParams['font.size'] = 9
 
 from itertools import chain
 
@@ -33,11 +35,12 @@ def get_results():
         if commit_hash in perf_refs:
             result = perf_refs[commit_hash]
         sorted_results.append((commit, result))
-    return sorted_results
+    return repo.head.target.hex, sorted_results
+
 
 def format_results(results):
     all_tests = set(chain(*[r.keys() for c, r in results]))
-    all_tests -= {'now', 'bulk'} # doh
+    all_tests -= {'now', 'bulk', 'previous'} # doh
     formatted = {t: [] for t in all_tests}
     for commit, result in results:
         for test in all_tests:
@@ -117,7 +120,7 @@ def upload_docs(html):
         branch='gh-pages'
     )
 
-def render_docs(results):
+def render_docs(results, latest_commit):
     template_path = os.path.join(os.path.dirname(__file__), 'templates')
     loader = jinja2.FileSystemLoader(template_path)
     env = jinja2.Environment(loader=loader)
@@ -126,14 +129,16 @@ def render_docs(results):
         results=results,
         classes={c.NAME: c for c in ALL_TEST_CLASSES},
         make_commit_graph=make_commit_graph,
+        latest_commit=latest_commit,
+        now=datetime.now()
     )
 
 
 def main():
-    results = get_results()
+    latest_commit, results = get_results()
     formatted = format_results(results)
-    html = render_docs(formatted)
-
+    html = render_docs(formatted, latest_commit)
+    save_docs(html)
     if 'GITHUB_TOKEN' in os.environ:
         upload_docs(html)
     else:

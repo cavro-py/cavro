@@ -20,11 +20,11 @@
         section header{
             font-weight: bold;
         }
-        section {
+        section,.title {
+            box-sizing: border-box;
             min-width: 400px;
-            margin: auto;
-            padding: 10px;
-            padding: 10px;
+            padding: 15px;
+            margin: 10px auto;
             width: 70%;
             background: white;
             box-shadow: 2px 2px 4px rgba(0,0,0,0.2);
@@ -32,6 +32,8 @@
 
         section svg{
             max-width: 90%;
+            margin: auto;
+            display: block;
         }
     </style>
 </head>
@@ -39,6 +41,7 @@
 <body>
     <div class=title>
         <header>Cavro benchmark results</header>
+        <p>Latest commit: {{ latest_commit}}, generated at {{ now }}</p>
     </div>
 
 {% for test, res in results.items()|sort %}
