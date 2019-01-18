@@ -14,6 +14,7 @@ upload_benchmark_docker:
 	apk add freetype-dev libpng-dev
 	pip3 install --upgrade numpy
 	pip3 install jinja2 matplotlib
+	git fetch -v origin +refs/perf/\*:refs/perf/\*
 	PYTHONPATH=. python3 benchmark/update_docs.py
 
 upload_benchmark:
