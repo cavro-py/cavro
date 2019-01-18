@@ -121,7 +121,7 @@ def upload_docs(html):
     )
     gh_repo._requester.requestJsonAndCheck(
         'POST',
-        gh_repourl+'/pages/builds',
+        gh_repo.url+'/pages/builds',
         headers={
             'Accept': 'application/vnd.github.mister-fantastic-preview+json'
         }
