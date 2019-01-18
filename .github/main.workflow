@@ -8,10 +8,10 @@ workflow "Build&Test" {
 action "Build & Test" {
   uses = "actions/docker/cli@76ff57a"
   args = "build -t stestagg/cavro ."
-  needs = ["If master"]
+  needs = ["Only run on master"]
 }
 
-action "If master" {
+action "Only run on master" {
   uses = "actions/bin/filter@b2bea0749eed6beb495a8fa194c071847af60ea1"
   args = "branch master"
 }
