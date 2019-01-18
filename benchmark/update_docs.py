@@ -119,6 +119,13 @@ def upload_docs(html):
         current_file.sha,
         branch='gh-pages'
     )
+    gh_repo._requester.requestJsonAndCheck(
+        'POST',
+        gh_repourl+'/pages/builds',
+        headers={
+            'Accept': 'application/vnd.github.mister-fantastic-preview+json'
+        }
+    )
 
 def render_docs(results, latest_commit):
     template_path = os.path.join(os.path.dirname(__file__), 'templates')
