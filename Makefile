@@ -10,9 +10,16 @@ data-test: $(SOFILE)
 benchmark: $(SOFILE)
 	PYTHONPATH=. python3 benchmark/main.py
 
-upload_benchmark:
+upload_benchmark_docker:
+	apk add freetype-dev libpng-dev
+	pip3 install --upgrade numpy
 	pip3 install jinja2 matplotlib
 	PYTHONPATH=. python3 benchmark/update_docs.py
+
+upload_benchmark:
+	PYTHONPATH=. python3 benchmark/update_docs.py
+
+
 
 perf: $(SOFILE)
 	PYTHONPATH=. python3 perf.py
