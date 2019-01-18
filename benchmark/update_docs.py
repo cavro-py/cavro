@@ -114,7 +114,7 @@ def upload_docs(html):
         'Automated upload of benchmark results',
         html,
         current_file.sha,
-        branch='docs'
+        branch='gh-pages'
     )
 
 def render_docs(results):
