@@ -46,7 +46,10 @@ cdef class EnumType(NamedType):
             raise KeyError(f"'{value}' invalid for enum")
         return value
 
-    cdef str canonical_form(self):
+    cdef str canonical_form(self, set created):
+        if self in created:
+            return self.get_type_name()
+        created.add(self)
         return dict_to_canonical({
             'type': 'enum',
             'name': self.get_type_name(),

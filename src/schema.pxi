@@ -26,7 +26,7 @@ cdef class Schema:
 
     property canonical_form:
         def __get__(self):
-            return self.type.canonical_form()
+            return self.type.canonical_form(set())
 
     def find_type(self, str namespace, str name):
         return self.named_types[resolve_namespaced_name(namespace, name)]

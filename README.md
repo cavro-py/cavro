@@ -119,10 +119,11 @@ An Avro serializer/deserializer for python written in cython.
 
 ## Container format
  - [x] basic reading
- - [ ] read schema
+ - [x] read schema
  - [x] read objects
  - [ ] null schema
- - [ ] codec support
+ - [ ] deflate support
+ - [ ] snappy support
  - [ ] parallel reading
  - [ ] Reader error handling
 
@@ -137,5 +138,6 @@ An Avro serializer/deserializer for python written in cython.
 
 ## Other
  - [ ] writing array & map chunk
+
 
 

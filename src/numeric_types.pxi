@@ -34,7 +34,7 @@ cdef class BoolType(AvroType):
         cdef py_bool decoded = value
         return decoded
 
-    cdef str canonical_form(self):
+    cdef str canonical_form(self, set created):
         return '"boolean"'
 
 
@@ -76,7 +76,7 @@ cdef class IntType(AvroType):
         cdef int32_t decoded = value
         return decoded
 
-    cdef str canonical_form(self):
+    cdef str canonical_form(self, set created):
         return '"int"'
 
 
@@ -112,7 +112,7 @@ cdef class LongType(AvroType):
     def json_format(self,int64_t value):
         return value
 
-    cdef str canonical_form(self):
+    cdef str canonical_form(self, set created):
         return '"long"'
 
 
@@ -153,7 +153,7 @@ cdef class FloatType(AvroType):
     def json_format(self, value):
         return float(value)
 
-    cdef str canonical_form(self):
+    cdef str canonical_form(self, set created):
         return '"float"'
 
 
@@ -190,6 +190,6 @@ cdef class DoubleType(AvroType):
     def json_format(self, value):
         return float(value)
 
-    cdef str canonical_form(self):
+    cdef str canonical_form(self, set created):
         return '"double"'
 

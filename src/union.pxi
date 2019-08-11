@@ -75,10 +75,10 @@ cdef class UnionType(AvroType):
         cdef Py_ssize_t index = self.resolve_from_value(value)
         return self.union_types[index].convert_value(value)
 
-    cdef str canonical_form(self):
+    cdef str canonical_form(self, set created):
         cdef list parts = []
         cdef AvroType avro_type
         for avro_type in self.union_types:
-            parts.append(avro_type.canonical_form())
+            parts.append(avro_type.canonical_form(created))
         return '[' + ','.join(parts) + ']'
 

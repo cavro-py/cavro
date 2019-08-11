@@ -31,5 +31,5 @@ cdef class NullType(AvroType):
     cpdef object _convert_value(self, object value):
         return None
 
-    cdef str canonical_form(self):
+    cdef str canonical_form(self, set created):
         return '"null"'

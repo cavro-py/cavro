@@ -87,7 +87,7 @@ cdef class AvroType:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement json_format")
 
-    cdef str canonical_form(self):
+    cdef str canonical_form(self, set created):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement canonical_form")
 
