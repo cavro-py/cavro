@@ -29,8 +29,8 @@ def make_enum_val(ty, energy):
 
 
 def make_union_val(ty, energy):
-    if energy < 2:
-        simple = [t for t in ty.union_types if t not in {cavro.RecordType, cavro.ArrayType, cavro.MapType}]
+    if energy < 1:
+        simple = [t for t in ty.union_types if not any(isinstance(t, T) for T in {cavro.RecordType, cavro.ArrayType, cavro.MapType})]
         if simple:
             return make_value_for_type(random.choice(simple), energy-1)
     return make_value_for_type(random.choice(ty.union_types), energy-1)
@@ -110,8 +110,16 @@ def main():
         try:
             tmp = io.StringIO()
             sch_json = schema.make_schema_json(5)
-            sch = cavro.Schema(sch_json)
-            value = make_value_for_type(sch.type, 5)
+            try:
+                sch = cavro.Schema(sch_json)
+            except:
+                print(f"Exception parsing: {sch_json}")
+                raise
+            try:
+                value = make_value_for_type(sch.type, 5)
+            except:
+                print(f"Exception making value for: {sch_json}")
+                raise
             try:
                 encoded = sch.binary_encode(value)
             except:

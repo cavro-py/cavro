@@ -6,19 +6,25 @@ cdef int FIT_EXACT = 3 # Value is the exact type and needs no further conversion
 
 
 CANONICAL_FORM_KEYS = ('name', 'type', 'fields', 'symbols', 'items', 'values', 'size')
-cdef str dict_to_canonical(data):
+
+cdef class CanonicalForm(str):
+    pass
+
+cdef CanonicalForm dict_to_canonical(data):
     if isinstance(data, dict):
         pairs=[]
         for key in CANONICAL_FORM_KEYS:
             if key in data:
                 pairs.append((f'"{key}"', dict_to_canonical(data[key])))
         pair_str = ','.join(':'.join(p) for p in pairs)
-        return '{' + pair_str + '}'
-    elif isinstance(data, tuple):
+        return CanonicalForm('{' + pair_str + '}')
+    elif isinstance(data, (tuple, list)):
         values = ','.join([dict_to_canonical(v) for v in data])
-        return '[' + values + ']'
+        return CanonicalForm('[' + values + ']')
+    elif isinstance(data, CanonicalForm):
+        return data
     else:
-        return json.dumps(data, ensure_ascii=False)
+        return CanonicalForm(json.dumps(data, ensure_ascii=False))
 
 
 cdef class AvroType:
@@ -41,6 +47,8 @@ cdef class AvroType:
         namespaced = resolve_namespaced_name(namespace, type_name)
         if namespaced in schema.named_types:
             return schema.named_types[namespaced]
+        if type_name in schema.named_types:
+            return schema.named_types[type_name]
         raise ValueError(f"Unknown type: {type_name}")
 
     @classmethod
@@ -87,7 +95,7 @@ cdef class AvroType:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement json_format")
 
-    cdef str canonical_form(self, set created):
+    cdef CanonicalForm canonical_form(self, set created):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement canonical_form")
 
@@ -96,6 +104,7 @@ cdef class NamedType(AvroType):
 
     cdef readonly str name
     cdef readonly str namespace
+    cdef readonly str effective_namespace
     cdef readonly frozenset aliases
 
     def __init__(self, schema, source, namespace):
@@ -107,8 +116,9 @@ cdef class NamedType(AvroType):
                 raise ValueError(f"'{name}' is not allowed as a name")
         self.name = name
         self.namespace = source.get('namespace')
+        self.effective_namespace = namespace if self.namespace is None else self.namespace
         self.aliases = frozenset(source.get('aliases', []))
-        schema_t.register_type(self.namespace, self.name, self)
+        schema_t.register_type(self.effective_namespace, self.name, self)
 
     cpdef str get_type_name(self):
         return resolve_namespaced_name(self.namespace, self.name)

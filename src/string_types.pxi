@@ -31,8 +31,8 @@ cdef class BytesType(AvroType):
             value = value.encode('latin-1')
         return value
 
-    cdef str canonical_form(self, set created):
-        return '"bytes"'
+    cdef CanonicalForm canonical_form(self, set created):
+        return CanonicalForm('"bytes"')
 
 
 cdef class StringType(AvroType):
@@ -69,8 +69,8 @@ cdef class StringType(AvroType):
             return value.decode('utf-8')
         return str(value)
 
-    cdef str canonical_form(self, set created):
-        return '"string"'
+    cdef CanonicalForm canonical_form(self, set created):
+        return CanonicalForm('"string"')
 
 
 cdef class FixedType(NamedType):
@@ -108,7 +108,7 @@ cdef class FixedType(NamedType):
     cpdef object _convert_value(self, object value):
         return value
 
-    cdef str canonical_form(self, set created):
+    cdef CanonicalForm canonical_form(self, set created):
         if self in created:
             return self.get_type_name()
         created.add(self)

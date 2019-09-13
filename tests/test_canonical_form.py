@@ -14,13 +14,26 @@ import pytest
         ({'type': 'double'}, '"double"'),
         ('"bytes"', '"bytes"'),
         ('"string"', '"string"'),
+        (
+            {'type': 'fixed', 'size': 12, 'name': 'F'},
+            '{"name":"F","type":"fixed","size":12}'
+        ),
         ({'type': 'enum', 'symbols': ['X', 'A', '\u00a3'], 'name': 'Foo', 'doc': 'bar'},
          '{"name":"Foo","type":"enum","symbols":["X","A","£"]}'),
         ('{"type": "enum", "symbols": ["X", "A", "\\u00a3"], "name": "Foo", "doc": "bar"}',
          '{"name":"Foo","type":"enum","symbols":["X","A","£"]}'),
-        ({"type": "fixed", "size": 16, "name": "md5", "aliases": ["bob"]},
-         '{"name":"md5","type":"fixed","size":16}')
-
+        ('{"type": "record", "fields": [{"name": "a", "type": "Foo"}], "name": "Foo"}',
+         '{"name":"Foo","type":"record","fields":[{"name":"a","type":"Foo"}]}'),
+        ('''{"type": "record", "name": "rec", "fields": [
+                {"name": "a", "type": {"type": "enum", "symbols": ["a"], "name": "X"}},
+                {"name": "b", "type": {"type": "X"}}
+        ]}''',
+        '{"name":"rec","type":"record","fields":[{"name":"a","type":{"name":"X","type":"enum","symbols":["a"]}},{"name":"b","type":"X"}]}'),
+        ({'type': 'array', 'items': 'long'}, '{"type":"array","items":"long"}'),
+        (
+            {'type': 'map', 'values': {'type': 'fixed', 'size': 8, 'name': 'Xxx', 'namespace': 'com.x'}},
+            '{"type":"map","values":{"name":"com.x.Xxx","type":"fixed","size":8}}'
+        )
     ]
 )
 def test_canonical_form(schema, expected):

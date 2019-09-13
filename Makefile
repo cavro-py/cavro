@@ -41,4 +41,4 @@ clean:
 	- rm cavro*.so
 	- find ./ -name __pycache__ -exec rm -rf '{}' \;
 
-.PHONY: test clean benchmark
+.PHONY: test clean benchmark fuzz

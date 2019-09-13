@@ -106,6 +106,13 @@ cdef class RecordField:
         self.order = Order(source.get('order', 'ascending'))
         self.aliases = set(source.get('aliases', []))
 
+    cdef CanonicalForm canonical_form(self, set created):
+        return dict_to_canonical({
+            'name': self.name,
+            'type': self.type.canonical_form(created),
+        })
+
+
 
 cdef class FieldAccessor:
     cdef Py_ssize_t index
@@ -149,7 +156,7 @@ cdef class RecordType(NamedType):
         NamedType.__init__(self, schema, source, namespace)
         self.doc = source.get('doc', '')
         self.fields = tuple(
-            RecordField(schema, f, self.namespace) for f in source['fields']
+            RecordField(schema, f, self.effective_namespace) for f in source['fields']
         )
         self.field_dict = {f.name: f for f in self.fields}
         self.record = make_record_class(self)
@@ -218,3 +225,15 @@ cdef class RecordType(NamedType):
 
     cpdef object _convert_value(self, object value):
         return self.record(value)
+
+    cdef CanonicalForm canonical_form(self, set created):
+        cdef RecordField field
+        if self in created:
+            return CanonicalForm('"' + self.get_type_name() + '"')
+        created.add(self)
+        return dict_to_canonical({
+            'type': 'record',
+            'name': self.get_type_name(),
+            'fields': [field.canonical_form(created) for field in self.fields]
+        })
+

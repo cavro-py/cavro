@@ -7,8 +7,8 @@ An Avro serializer/deserializer for python written in cython.
 
  - [x] Parse Schema json
  - [ ] Non-core attributes
- - [ ] name resolution
- - [ ] namespaced name resolution
+ - [x] name resolution
+ - [x] namespaced name resolution
 
  ## Basic schema support
  - [x] Null
@@ -25,10 +25,10 @@ An Avro serializer/deserializer for python written in cython.
  - [x] enum
  - [x] array
  - [x] map
- 
+
 ## Value Reading (Binary encoding)
  - [x] Null
- - [x] bool 
+ - [x] bool
  - [x] int
  - [x] long
  - [x] float
@@ -39,7 +39,7 @@ An Avro serializer/deserializer for python written in cython.
  - [x] fixed
  - [x] enum
  - [x] array
- - [x] map 
+ - [x] map
 
 ## Value Writing (Binary encoding)
  - [x] Null
@@ -109,13 +109,13 @@ An Avro serializer/deserializer for python written in cython.
  - [x] long
  - [x] float
  - [x] double
- - [ ] bytes
- - [ ] string
- - [ ] record
- - [ ] fixed
+ - [x] bytes
+ - [x] string
+ - [x] record
+ - [x] fixed
  - [x] enum
- - [ ] array
- - [ ] map
+ - [x] array
+ - [x] map
 
 ## Container format
  - [x] basic reading

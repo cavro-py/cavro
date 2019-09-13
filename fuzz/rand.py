@@ -21,7 +21,7 @@ def randint(low, high):
 STRING_TABLE = ((string.punctuation + ((string.ascii_letters + string.digits) * 4))[:256]).encode('ascii')
 NAME_TABLE = (((string.ascii_letters + string.digits) * 5)[:256]).encode('ascii')
 def make_rand_str(max_len=15, trans_table=STRING_TABLE):
-    name_len = random.randint(5, max_len)
+    name_len = random.randint(min(5, max_len-1), max_len)
     name_bytes = random.bytes(name_len)
     return name_bytes.translate(trans_table).decode('ascii')
 
@@ -29,3 +29,9 @@ def make_rand_str(max_len=15, trans_table=STRING_TABLE):
 def make_name(max_len=15):
     first_chr = random.choice(list(string.ascii_letters))
     return first_chr + make_rand_str(max_len-1, NAME_TABLE)
+
+def make_name_ns(len_hint=15):
+    if percent(80):
+        return make_name(len_hint)
+    parts = randint(1, 5)
+    return '.'.join(make_name(max(len_hint//parts, 1)) for _ in range(parts))

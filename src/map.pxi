@@ -103,3 +103,9 @@ cdef class MapType(AvroType):
             elif value_fitness < FIT_EXACT:
                 return self._make_converted_map(iter(value))
         return orig_value
+
+    cdef CanonicalForm canonical_form(self, set created):
+        return dict_to_canonical({
+            'type': 'map',
+            'values': self.value_type.canonical_form(created)
+        })

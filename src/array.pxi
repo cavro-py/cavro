@@ -1,6 +1,7 @@
 import numpy
 import collections
 
+@cython.final
 cdef class ArrayType(AvroType):
     type_name = "array"
 
@@ -68,3 +69,9 @@ cdef class ArrayType(AvroType):
             elif item_fitness < FIT_EXACT:
                 return self._make_converted_list(iter(value))
         return value
+
+    cdef CanonicalForm canonical_form(self, set created):
+        return dict_to_canonical({
+            'type': 'array',
+            'items': self.item_type.canonical_form(created)
+        })
