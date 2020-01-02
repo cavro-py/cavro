@@ -27,10 +27,15 @@ cdef CanonicalForm dict_to_canonical(data):
         return CanonicalForm(json.dumps(data, ensure_ascii=False))
 
 
+cdef dict _strip_keys(dict source, set keys):
+    return {k: v for k, v in source.items() if k not in keys}
+
+
 cdef class AvroType:
     type_name = NotImplemented
 
     cdef readonly bool permissive
+    cdef readonly dict metadata
 
     @classmethod
     def for_source(cls, schema, source, namespace=None):
@@ -57,9 +62,14 @@ cdef class AvroType:
 
     def __init__(self, schema, source, namespace):
         self.permissive = schema.permissive
+        self.metadata = self._extract_metadata(source)
 
     cpdef str get_type_name(self):
         return self.type_name
+
+    cdef dict _extract_metadata(self, source):
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement _extract_metadata")
 
     cpdef object _convert_value(self, object value):
         raise NotImplementedError(

@@ -6,7 +6,7 @@ An Avro serializer/deserializer for python written in cython.
 ## Basic
 
  - [x] Parse Schema json
- - [ ] Non-core attributes
+ - [x] Non-core attributes
  - [x] name resolution
  - [x] namespaced name resolution
 

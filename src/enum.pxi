@@ -23,6 +23,16 @@ cdef class EnumType(NamedType):
         for i, symbol in enumerate(self.symbols):
             self.symbol_indexes[symbol] = i
 
+    cdef dict _extract_metadata(self, source):
+        return _strip_keys(source, {
+            'type',
+            'name', 
+            'namespace', 
+            'aliases', 
+            'doc', 
+            'symbols'
+        })
+
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef size_t index = self.symbol_indexes[value]
         zigzag_encode_long(buffer, index)

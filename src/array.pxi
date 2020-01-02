@@ -11,6 +11,9 @@ cdef class ArrayType(AvroType):
         super().__init__(schema, source, namespace)
         self.item_type = AvroType.for_source(schema, source['items'], namespace)
 
+    cdef dict _extract_metadata(self, source):
+        return _strip_keys(source, {'type', 'items'})
+
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         if len(value):
             zigzag_encode_long(buffer, len(value))
