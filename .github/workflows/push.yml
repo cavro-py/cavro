@@ -10,19 +10,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v1
-      - name: Build & Test
-        uses: actions/docker/cli@master
-        with:
-          args: build -t stestagg/cavro .
+      - name: Build docker
+        run: docker build -t stestagg/cavro .
+      - name: Test image
+        run: docker run --rm stestagg/cavro -c 'make test'
       - name: Run Benchmark
-        uses: actions/docker/cli@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make benchmark'
+        run: docker run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make benchmark'
       - name: Upload updated results
-        uses: actions/docker/cli@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make upload_benchmark_docker'
+        run: docker run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make upload_benchmark_docker'
