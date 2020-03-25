@@ -1,6 +1,6 @@
 # Cavro specific
 cavro.c
-data/
+/data
 afl/graph/
 
 .DS_Store

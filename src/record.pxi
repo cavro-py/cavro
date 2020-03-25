@@ -161,6 +161,16 @@ cdef class RecordType(NamedType):
         self.field_dict = {f.name: f for f in self.fields}
         self.record = make_record_class(self)
 
+    cdef dict _extract_metadata(self, source):
+        return _strip_keys(source, {
+            'type', 
+            'name', 
+            'namespace', 
+            'doc', 
+            'aliases', 
+            'fields'
+        })
+
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef RecordField field
         cdef list rec_data

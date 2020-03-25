@@ -7,6 +7,9 @@ cdef class NullType(AvroType):
         super().__init__(schema, source, namespace)
         self.schema = schema
 
+    cdef dict _extract_metadata(self, source):
+        return _strip_keys(source, {'type'})
+
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         if value is None or (self.schema.permissive and not value):
             return 0

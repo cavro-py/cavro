@@ -2,6 +2,9 @@
 cdef class BytesType(AvroType):
     type_name = "bytes"
 
+    cdef dict _extract_metadata(self, source):
+        return _strip_keys(source, {'type'})
+
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         if isinstance(value, str):
             value = value.encode('utf-8')
@@ -37,6 +40,9 @@ cdef class BytesType(AvroType):
 
 cdef class StringType(AvroType):
     type_name = "string"
+
+    cdef dict _extract_metadata(self, source):
+        return _strip_keys(source, {'type'})
 
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         if isinstance(value, str):
@@ -81,6 +87,9 @@ cdef class FixedType(NamedType):
     def __init__(self, schema, source, namespace):
         super().__init__(schema, source, namespace)
         self.size = source['size']
+
+    cdef dict _extract_metadata(self, source):
+        return _strip_keys(source, {'type', 'name', 'namespace', 'aliases', 'size'})
 
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         if isinstance(value, str):

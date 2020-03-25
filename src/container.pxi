@@ -9,6 +9,7 @@ cdef int viewcmp(const uint8_t[:] a, const uint8_t[:] b):
         return 1
     return memcmp(&a[0], &b[0], len(a))
 
+
 cdef class Codec:
 
     cdef const uint8_t[:] read_block(self, Reader reader, size_t length):

@@ -7,8 +7,11 @@ cdef class MapType(AvroType):
 
     def __init__(self, schema, source, namespace):
         super().__init__(schema, source, namespace)
-        self.key_type = StringType(schema, 'string', namespace)
+        self.key_type = StringType(schema, {'type': 'string'}, namespace)
         self.value_type = AvroType.for_source(schema, source['values'], namespace)
+
+    cdef dict _extract_metadata(self, source):
+        return _strip_keys(source, {'type', 'values'})
 
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         if hasattr(value, 'items'):

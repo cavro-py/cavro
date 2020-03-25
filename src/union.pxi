@@ -22,6 +22,9 @@ cdef class UnionType(AvroType):
                         raise ValueError(f"Unions may not have more than one member of type '{ member_type.type_name }'")
                     seen_types.add(member_type)
 
+    cdef dict _extract_metadata(self, source):
+        return dict()
+
     cdef Py_ssize_t resolve_from_value(self, object value) except -1:
         cdef int threshold = FIT_POOR if self.schema.permissive else FIT_OK
         cdef AvroType candidate
@@ -80,5 +83,5 @@ cdef class UnionType(AvroType):
         cdef AvroType avro_type
         for avro_type in self.union_types:
             parts.append(avro_type.canonical_form(created))
-        return '[' + ','.join(parts) + ']'
+        return CanonicalForm('[' + ','.join(parts) + ']')
 

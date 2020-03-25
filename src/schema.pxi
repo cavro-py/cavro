@@ -1,4 +1,5 @@
 import json
+import hashlib
 
 cdef str resolve_namespaced_name(str namespace, str name):
     if '.' in name or namespace is None:
@@ -27,6 +28,14 @@ cdef class Schema:
     property canonical_form:
         def __get__(self):
             return self.type.canonical_form(set())
+
+    def fingerprint(self, method='rabin', **kwargs):
+        if method == 'rabin':
+            hasher = Rabin()
+        else:
+            hasher = hashlib.new(method, **kwargs)
+        hasher.update(self.canonical_form.encode('utf-8'))
+        return hasher
 
     def find_type(self, str namespace, str name):
         return self.named_types[resolve_namespaced_name(namespace, name)]

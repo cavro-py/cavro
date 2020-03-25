@@ -9,6 +9,9 @@ cdef float FLOAT_INT_THRESHOLD = 0.001
 cdef class BoolType(AvroType):
     type_name = "boolean"
 
+    cdef dict _extract_metadata(self, source):
+        return _strip_keys(source, {'type'})
+
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         if value:
             buffer.write_u8(1)
@@ -40,6 +43,9 @@ cdef class BoolType(AvroType):
 
 cdef class IntType(AvroType):
     type_name = "int"
+
+    cdef dict _extract_metadata(self, source):
+        return _strip_keys(source, {'type'})
 
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         zigzag_encode_int(buffer, value)
@@ -83,6 +89,9 @@ cdef class IntType(AvroType):
 cdef class LongType(AvroType):
     type_name = "long"
 
+    cdef dict _extract_metadata(self, source):
+        return _strip_keys(source, {'type'})
+
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         zigzag_encode_long(buffer, value)
 
@@ -118,6 +127,9 @@ cdef class LongType(AvroType):
 
 cdef class FloatType(AvroType):
     type_name = "float"
+
+    cdef dict _extract_metadata(self, source):
+        return _strip_keys(source, {'type'})
 
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef float float_val = value
@@ -159,6 +171,9 @@ cdef class FloatType(AvroType):
 
 cdef class DoubleType(AvroType):
     type_name = "double"
+
+    cdef dict _extract_metadata(self, source):
+        return _strip_keys(source, {'type'})
 
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef double float_val = value
