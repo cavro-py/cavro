@@ -1,28 +1,27 @@
 on: push
-name: Build&Test
+  branches:
+    - master
+name: Build&Benchmark
 jobs:
-  onlyRunOnMaster:
-    name: Only run on master
+  buildBenchmark:
+    name: Build, Test & Benchmark code
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - name: Only run on master
-      uses: actions/bin/filter@master
-      with:
-        args: branch master
-    - name: Build & Test
-      uses: actions/docker/cli@master
-      with:
-        args: build -t stestagg/cavro .
-    - name: Run Benchmark
-      uses: actions/docker/cli@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        args: run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make benchmark'
-    - name: Upload updated results
-      uses: actions/docker/cli@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        args: run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make upload_benchmark_docker'
+      - name: Checkout code
+        uses: actions/checkout@v1
+      - name: Build & Test
+        uses: actions/docker/cli@master
+        with:
+          args: build -t stestagg/cavro .
+      - name: Run Benchmark
+        uses: actions/docker/cli@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make benchmark'
+      - name: Upload updated results
+        uses: actions/docker/cli@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make upload_benchmark_docker'
