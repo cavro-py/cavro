@@ -83,5 +83,5 @@ cdef class UnionType(AvroType):
         cdef AvroType avro_type
         for avro_type in self.union_types:
             parts.append(avro_type.canonical_form(created))
-        return '[' + ','.join(parts) + ']'
+        return CanonicalForm('[' + ','.join(parts) + ']')
 

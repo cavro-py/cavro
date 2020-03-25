@@ -36,6 +36,7 @@ def _perf(fn):
 include "src/io.pxi"
 include "src/buffer.pxi"
 include "src/zigzag.pxi"
+include "src/rabin.pxi"
 
 include "src/tests/test_zigzag.pxi"
 include "src/tests/test_buffer.pxi"
