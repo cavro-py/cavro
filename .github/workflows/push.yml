@@ -5,7 +5,7 @@ jobs:
     name: Only run on master
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
+    - uses: uses: actions/checkout@v2
     - name: Only run on master
       uses: actions/bin/filter@master
       with:
