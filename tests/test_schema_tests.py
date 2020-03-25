@@ -1,3 +1,4 @@
+import hashlib
 import cavro
 import pytest
 import re
@@ -30,4 +31,10 @@ TESTS = read_tests()
 def test_avro_schema_tests(schema_text, canonical, fingerprint):
     schema = cavro.Schema(schema_text, permissive=True)
     assert schema.canonical_form == canonical
-    assert schema.fingerprint().hexdigest() == fingerprint
+    for method in ['sha256', 'md5']:
+        assert (
+            schema.fingerprint(method).hexdigest() 
+            == hashlib.new(method, canonical.encode()).hexdigest()
+        )
+    if fingerprint:
+        assert schema.fingerprint().value == int(fingerprint)
