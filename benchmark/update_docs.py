@@ -26,7 +26,8 @@ def get_results():
     perf_refs = {}
     for ref in repo.references:
         if ref.startswith('refs/perf'):
-            perf_data = repo.references[ref].get_object().data
+            blob_id = repo.references[ref].target
+            perf_data = repo.get(blob_id).data
             perf_refs[ref.rsplit('/', 1)[-1]] = json.loads(perf_data)
     sorted_results = []
     for commit in repo.walk(repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL):
