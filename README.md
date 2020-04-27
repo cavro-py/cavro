@@ -2,7 +2,7 @@
 
 An Avro serializer/deserializer for python written in cython.
 
-# Functinoality
+# Functionality
 
 ## Basic
 
