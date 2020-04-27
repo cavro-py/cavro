@@ -9,6 +9,7 @@ COPY requirements.txt /root/requirements.txt
 
 RUN pip3 install --upgrade pip
 RUN pip3 install -r /root/requirements.txt
+RUN pip3 install python-snappy
 
 COPY . /root
 
