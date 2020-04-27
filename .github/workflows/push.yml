@@ -21,4 +21,5 @@ jobs:
       - name: Upload updated results
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: docker run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make upload_benchmark_docker'
+          UPLOAD_TOKEN: ${{ secrets.UPLOAD_TOKEN }}
+        run: docker run -e GITHUB_TOKEN -e UPLOAD_TOKEN --rm stestagg/cavro -c 'make upload_benchmark_docker'
