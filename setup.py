@@ -25,7 +25,7 @@ setup(
         Extension(
             "cavro",
             sources=["cavro.pyx"],
-            extra_compile_args=['-g', '-Wno-nullability-completeness','-Wno-unused-function'], # "-O2", 
+            extra_compile_args=['-g', '-Wno-nullability-completeness','-Wno-unused-function', '-O2'], 
             extra_link_args=['-g'],
         ),
         compiler_directives={"language_level": 3, 'embedsignature': True},

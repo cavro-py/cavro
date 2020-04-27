@@ -40,6 +40,9 @@ cdef class MemoryReader(Reader):
     cdef const uint8_t *end_ptr
 
     def __init__(self, data):
+        self._reset_to(data)
+
+    cdef void _reset_to(self, const uint8_t[:] data):
         if len(data):
             self.data = data
         else:
@@ -51,13 +54,13 @@ cdef class MemoryReader(Reader):
     cdef const uint8_t *advance(self, size_t num) except <uint8_t*>0:
         cdef const uint8_t *ptr = self.ptr
         if <size_t>(self.end_ptr - self.ptr) < num:
-            raise ValueError("Not enough input data to read value")
+            raise EOFError("Not enough input data to read value")
         self.ptr += num
         return ptr
 
     cdef inline int ensure(self, size_t num) except -1:
         if <size_t>(self.end_ptr - self.ptr) < num:
-            raise ValueError("Not enough input data to read value")
+            raise EOFError("Not enough input data to read value")
 
     cdef uint8_t read_u8(self) except? 0xba:
         return self.advance(1)[0]

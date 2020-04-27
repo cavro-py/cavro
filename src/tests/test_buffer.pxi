@@ -9,7 +9,7 @@ def _tests(add):
         assert buffer.read_u8() == 2
         assert buffer.read_u8() == 3
         import pytest
-        with pytest.raises(ValueError):
+        with pytest.raises(EOFError):
             buffer.read_u8()
 
     @add
@@ -20,5 +20,5 @@ def _tests(add):
         b = bytes(buffer.read_n(7)[:7])
         assert b == b'counter', b
         import pytest
-        with pytest.raises(ValueError):
+        with pytest.raises(EOFError):
             buffer.read_n(2)

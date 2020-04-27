@@ -54,4 +54,5 @@ include "src/union.pxi"
 include "src/type.pxi"
 include "src/schema.pxi"
 
+include "src/codec.pxi"
 include "src/container.pxi"

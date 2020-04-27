@@ -1,3 +1,4 @@
+from pathlib import Path
 
 OBJ_MAGIC_BYTES = b'Obj\x01'
 cdef const uint8_t[:] OBJ_MAGIC = OBJ_MAGIC_BYTES
@@ -10,26 +11,18 @@ cdef int viewcmp(const uint8_t[:] a, const uint8_t[:] b):
     return memcmp(&a[0], &b[0], len(a))
 
 
-cdef class Codec:
-
-    cdef const uint8_t[:] read_block(self, Reader reader, size_t length):
-        raise NotImplementedError(
-            f"{type(self).__name__} does not implement read_block")
-
-    # cdef int write_block(self, Writer writer, bytes data):
-    #     raise NotImplementedError(
-    #         f"{type(self).__name__} does not implement write_block")
-
-
-cdef class NullCodec(Codec):
-
-    cdef const uint8_t[:] read_block(self, Reader reader, size_t length):
-        return reader.read_n(length)
-
-
-CODECS = {
-    b'null': NullCodec
-}
+cdef Reader make_reader(src):
+    if isinstance(src, Reader):
+        return src
+    elif isinstance(src, bytes):
+        return MemoryReader(src)
+    elif isinstance(src, (str, Path)):
+        return FileReader(Path(src).open('rb'))
+    elif hasattr(src, 'read'):
+        return FileReader(src)
+    else:
+        raise ValueError(f"Cannot read from '{src}'")
+    
 
 cdef class Container:
     cdef readonly object metadata
@@ -40,11 +33,11 @@ cdef class Container:
     cdef Codec codec
     cdef Reader reader
 
-    def __init__(self, file_obj):
-        self.reader = FileReader(file_obj)
+    def __init__(self, src):
+        self.reader = make_reader(src)
         cdef const uint8_t[:] header = self.reader.read_n(4)
         if viewcmp(header, OBJ_MAGIC):
-            raise ValueError(f"Invalid file header, expected: {OBJ_MAGIC} got {header}")
+            raise ValueError(f"Invalid file header, expected: {bytes(OBJ_MAGIC)} got {bytes(header)}")
         self.metadata = OBJ_FILE_METADATA.binary_read(self.reader)
         self.schema = Schema(self.metadata['avro.schema'])
         codec_name = self.metadata.get('avro.codec', 'null')
@@ -53,6 +46,7 @@ cdef class Container:
         except KeyError:
             raise ValueError(f"Unsupported codec: '{codec_name.decode('utf-8')}'")
         self.objects_left_in_block = 0
+        self.current_block = MemoryReader(empty_buffer)
         self.marker = b''
 
     cdef int next_block(self) except -1:
@@ -69,7 +63,7 @@ cdef class Container:
             raise StopIteration()
         cdef size_t block_size = zigzag_decode_long(self.reader)
         cdef const uint8_t[:] block_bytes = self.codec.read_block(self.reader, block_size)
-        self.current_block = MemoryReader(block_bytes)
+        self.current_block._reset_to(block_bytes)
 
     cpdef object next_object(self):
         if self.objects_left_in_block == 0:
