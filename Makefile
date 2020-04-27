@@ -2,7 +2,7 @@ PYVER=$(shell python3 -c 'import sys;v=sys.version_info;print(f"{v.major}{v.mino
 SOFILE=cavro.cpython-$(PYVER)m-darwin.so
 
 test: $(SOFILE)
-	PYTHONPATH=. pytest -svx
+	PYTHONPATH=. pytest -sv
 
 data-test: $(SOFILE)
 	PYTHONPATH=. python3 tmp/read_data.py
@@ -38,6 +38,7 @@ clean:
 	rm -rf build
 	rm -rf afl/a.out*
 	- rm afl/cavro*.so
+	- rm cavro.c
 	- rm cavro*.so
 	- find ./ -name __pycache__ -exec rm -rf '{}' \;
 

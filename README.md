@@ -132,11 +132,12 @@ An Avro serializer/deserializer for python written in cython.
 -   [x] basic reading
 -   [x] read schema
 -   [x] read objects
--   [ ] null schema
+-   [ ] Write container
+-   [x] null schema
 -   [ ] deflate support
--   [ ] snappy support
--   [ ] parallel reading
--   [ ] Reader error handling
+-   [x] snappy support
+-   [ ] Improved reader error handling
+-   [ ] Snappy checksum validation
 
 ## Logical Types
 
