@@ -108,7 +108,7 @@ def save_docs(html):
 
 def upload_docs(html):
     print("Uploading html")
-    g = github.Github(os.environ['GITHUB_TOKEN'])
+    g = github.Github(os.environ['UPLOAD_TOKEN'])
     g.FIX_REPO_GET_GIT_REF = False
     gh_repo = g.get_user('stestagg').get_repo('cavro')
 
@@ -147,7 +147,7 @@ def main():
     formatted = format_results(results)
     html = render_docs(formatted, latest_commit)
     save_docs(html)
-    if 'GITHUB_TOKEN' in os.environ:
+    if 'UPLOAD_TOKEN' in os.environ:
         upload_docs(html)
     else:
         save_docs(html)
