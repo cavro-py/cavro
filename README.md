@@ -134,7 +134,7 @@ An Avro serializer/deserializer for python written in cython.
 -   [x] read objects
 -   [ ] Write container
 -   [x] null schema
--   [ ] deflate support
+-   [x] deflate support
 -   [x] snappy support
 -   [ ] Improved reader error handling
 -   [ ] Snappy checksum validation
