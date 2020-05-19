@@ -50,3 +50,16 @@ cdef class FileReader(Reader):
         if len(result) != n:
             raise EOFError(f"End of file found trying to read {n} bytes")
         return result
+
+
+cdef class FileObjWriter(Writer):
+    cdef object file_obj
+
+    def __init__(self, file_obj):
+        self.file_obj = file_obj
+
+    cdef int write_u8(self, uint8_t val) except -1:
+        self.file_obj.write(bytes([val]))
+
+    cdef int write_N(self, uint8_t[:] data):
+        self.file_obj.write(data)

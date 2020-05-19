@@ -22,9 +22,16 @@ cdef Reader make_reader(src):
         return FileReader(src)
     else:
         raise ValueError(f"Cannot read from '{src}'")
+
+
+cdef Writer make_writer(src):
+    if isinstance(src, Writer):
+        return src
+    elif isinstance(src, (str, Path)):
+        return FileObjWriter(Path(src).open('wb'))
     
 
-cdef class Container:
+cdef class ContainerReader:
     cdef readonly object metadata
     cdef readonly const uint8_t[:] marker
     cdef readonly Schema schema
@@ -76,3 +83,14 @@ cdef class Container:
 
     def __next__(self):
         return self.next_object()
+
+
+
+cdef class ContainerWriter:
+
+    cdef MemoryWriter writer
+    cdef readonly Schema _schema
+    cdef readonly Codec codec
+
+    def __init__(self, dest):
+        self.writer = make_writer(dest)
