@@ -90,7 +90,7 @@ cdef class ContainerReader:
         return self.next_object()
 
 
-
+@cython.no_gc_clear
 cdef class ContainerWriter:
 
     cdef Writer writer
@@ -131,6 +131,10 @@ cdef class ContainerWriter:
         if self.writer is not None:
             self.close()
         return False
+
+    def __dealloc__(self):
+        if self.writer is not None:
+            self.close()
 
     @property
     def closed(self):

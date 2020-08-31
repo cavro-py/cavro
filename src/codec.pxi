@@ -46,7 +46,6 @@ cdef class SnappyCodec(Codec):
         return len(compressed) + 4
 
 
-
 cdef class NullCodec(Codec):
 
     cdef const uint8_t[:] read_block(self, Reader reader, size_t length):

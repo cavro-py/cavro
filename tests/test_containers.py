@@ -49,6 +49,15 @@ def test_writing_empty(monkeypatch):
     assert buf.getvalue() == b'Obj\x01\x04\x16avro.schema\n"int"\x14avro.codec\x08null\x00abcdefghijklmnop\x00\x00abcdefghijklmnop'
 
 
+def test_writing_empty_no_close(monkeypatch):
+    monkeypatch.setattr(uuid, 'uuid4', FakeUUID)
+    buf = BytesIO()
+    sch = cavro.Schema('"int"')
+    writer = cavro.ContainerWriter(buf, sch)
+    del writer
+    assert buf.getvalue() == b'Obj\x01\x04\x16avro.schema\n"int"\x14avro.codec\x08null\x00abcdefghijklmnop\x00\x00abcdefghijklmnop'
+
+
 def test_writing_one_int(monkeypatch):
     monkeypatch.setattr(uuid, 'uuid4', FakeUUID)
     buf = BytesIO()
@@ -56,6 +65,17 @@ def test_writing_one_int(monkeypatch):
     writer = cavro.ContainerWriter(buf, sch)
     writer.write_one(1)
     writer.close()
+    assert buf.getvalue() == FakeUUID.HEADER + b'\x02\x02\x02' + FakeUUID.bytes
+
+
+def test_writing_one_int_no_close(monkeypatch):
+    monkeypatch.setattr(uuid, 'uuid4', FakeUUID)
+    buf = BytesIO()
+    sch = cavro.Schema('"int"')
+    writer = cavro.ContainerWriter(buf, sch)
+    writer.write_one(1)
+    assert buf.getvalue() == FakeUUID.HEADER
+    del writer
     assert buf.getvalue() == FakeUUID.HEADER + b'\x02\x02\x02' + FakeUUID.bytes
 
 
