@@ -11,7 +11,7 @@ cdef class BytesType(AvroType):
         cdef Py_ssize_t length = len(value)
         zigzag_encode_long(buffer, length)
         if length:
-            buffer.write_n(length, value)
+            buffer.write_n(value)
 
     cdef binary_buffer_decode(self, Reader buffer):
         cdef uint64_t length = zigzag_decode_long(buffer)
@@ -50,7 +50,7 @@ cdef class StringType(AvroType):
         cdef size_t length = len(value)
         zigzag_encode_long(buffer, length)
         if length:
-            buffer.write_n(length, value)
+            buffer.write_n(value)
 
     cdef binary_buffer_decode(self, Reader buffer):
         cdef uint64_t length = zigzag_decode_long(buffer)
@@ -97,7 +97,7 @@ cdef class FixedType(NamedType):
         cdef Py_ssize_t length = len(value)
         if length != self.size:
             raise ValueError(f"Invalid length for fixed field: {length} != {self.size}")
-        buffer.write_n(length, value)
+        buffer.write_n(value)
 
     cdef binary_buffer_decode(self, Reader buffer):
         return bytes(buffer.read_n(self.size))

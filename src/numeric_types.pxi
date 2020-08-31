@@ -134,7 +134,7 @@ cdef class FloatType(AvroType):
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef float float_val = value
         cdef uint8_t *int_val = <uint8_t*>&float_val
-        buffer.write_n(4, int_val)
+        buffer.write_n(int_val[:4])
 
     cdef binary_buffer_decode(self, Reader buffer):
         cdef const uint8_t[:] val = buffer.read_n(4)
@@ -178,7 +178,7 @@ cdef class DoubleType(AvroType):
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef double float_val = value
         cdef uint8_t *int_val = <uint8_t*>&float_val
-        buffer.write_n(8, int_val)
+        buffer.write_n(int_val[:8])
 
     cdef binary_buffer_decode(self, Reader buffer):
         cdef const uint8_t[:] val = buffer.read_n(8)

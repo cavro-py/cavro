@@ -1,33 +1,41 @@
 
+
 cdef array.array byte_buffer_template = array.array('B', [])
 
 @cython.final
 cdef class MemoryWriter(Writer):
 
     cdef readonly array.array buffer
-    cdef size_t cur_pos
+    cdef size_t len
 
     def __init__(self, initial_size=4096):
         self.buffer = array.clone(byte_buffer_template, initial_size, zero=True)
-        self.cur_pos = 0
+        self.len = 0
 
     cdef bytes bytes(self):
-        return self.buffer.data.as_chars[:self.cur_pos]
+        return self.buffer.data.as_chars[:self.len]
+
+    cdef const uint8_t[:] view(self):
+        return self.buffer.data.as_uchars[:self.len]
 
     cdef reset(self):
-        self.cur_pos = 0
+        self.len = 0
 
     cdef int write_u8(self, uint8_t val) except -1:
-        if self.buffer.ob_size - self.cur_pos < 1:
-            array.resize_smart(self.buffer, self.cur_pos + 1)
-        self.buffer.data.as_uchars[self.cur_pos] = val
-        self.cur_pos += 1
+        if self.buffer.ob_size - self.len < 1:
+            array.resize_smart(self.buffer, self.len + 1)
+        self.buffer.data.as_uchars[self.len] = val
+        self.len += 1
 
-    cdef int write_n(self, size_t num, uint8_t *bytes) except -1:
-        if self.buffer.ob_size - self.cur_pos < num:
-            array.resize_smart(self.buffer, self.cur_pos + num)
-        memcpy(self.buffer.data.as_chars + self.cur_pos, bytes, num)
-        self.cur_pos += num
+    cdef int write_n(self, const uint8_t[:] data) except -1:
+        cdef size_t num = data.shape[0]
+        if num == 0:
+            return 0
+        if self.buffer.ob_size - self.len < num:
+            array.resize_smart(self.buffer, self.len + num)
+        cdef const uint8_t* data_ptr = &data[0]
+        memcpy(self.buffer.data.as_chars + self.len, data_ptr, num)
+        self.len += num
 
 
 cdef bytes empty_buffer = b"\x00"

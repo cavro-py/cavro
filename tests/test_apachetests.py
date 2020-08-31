@@ -9,7 +9,7 @@ def test_weather():
     exts = [".avro", "-snappy.avro"]
     records = {}
     for ext in exts:
-        container = cavro.Container((DATA_DIR / f'weather{ext}').open('rb'))
+        container = cavro.ContainerReader((DATA_DIR / f'weather{ext}').open('rb'))
         schema = container.schema
         assert schema.canonical_form == WEATHER_SCHEMA
         records[ext] = list({schema.json_encode(r) for r in container})
@@ -18,4 +18,4 @@ def test_weather():
         assert record == baseline
 
 def test_weather_sorted():
-    container = cavro.Container(DATA_DIR / f'weather-sorted.avro')
+    container = cavro.ContainerReader(DATA_DIR / f'weather-sorted.avro')

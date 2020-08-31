@@ -7,7 +7,7 @@ cdef class Writer:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement write_u8")
 
-    cdef int write_n(self, size_t num, uint8_t *bytes) except -1:
+    cdef int write_n(self, const uint8_t[:] data) except -1:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement write_n")
 
@@ -50,3 +50,16 @@ cdef class FileReader(Reader):
         if len(result) != n:
             raise EOFError(f"End of file found trying to read {n} bytes")
         return result
+
+
+cdef class FileObjWriter(Writer):
+    cdef object file_obj
+
+    def __init__(self, file_obj):
+        self.file_obj = file_obj
+
+    cdef int write_u8(self, uint8_t val) except -1:
+        self.file_obj.write(bytes([val]))
+
+    cdef int write_n(self, uint8_t[:] data) except -1:
+        self.file_obj.write(data)

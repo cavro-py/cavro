@@ -40,7 +40,7 @@ cdef class ArrayType(AvroType):
             level = FIT_EXACT
         elif isinstance(value, dict):
             level = FIT_POOR
-        elif isinstance(value, (bytes, str)) or not isinstance(value, collections.Iterable):
+        elif isinstance(value, (bytes, str)) or not isinstance(value, collections.abc.Iterable):
             return FIT_NONE
         try:
             it = iter(value)

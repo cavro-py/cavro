@@ -37,6 +37,6 @@ class PypiFile:
     def cavro(self):
         projects = set()
         with open(self.BULK_FILE, 'rb') as fo:
-            for record in cavro.Container(fo):
+            for record in cavro.ContainerReader(fo):
                 projects.add(record.file.project)
         return projects
