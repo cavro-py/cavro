@@ -11,9 +11,7 @@ benchmark: $(SOFILE)
 	PYTHONPATH=. python3 benchmark/main.py
 
 upload_benchmark_docker:
-	apk add freetype-dev libpng-dev
-	pip3 install --upgrade numpy
-	pip3 install jinja2 matplotlib
+	apk add py3-wheel py3-numpy py3-matplotlib py3-jinja2
 	git fetch -v origin +refs/perf/\*:refs/perf/\*
 	PYTHONPATH=. python3 benchmark/update_docs.py
 
