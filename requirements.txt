@@ -3,3 +3,6 @@ numpy
 
 avro-python3
 pytest
+
+tqdm
+click
