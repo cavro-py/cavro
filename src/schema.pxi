@@ -54,8 +54,11 @@ cdef class Schema:
         cdef MemoryReader buffer = MemoryReader(value)
         return self.type.binary_buffer_decode(buffer)
 
-    def binary_read(self, Reader reader):
+    cpdef binary_read(self, Reader reader):
         return self.type.binary_buffer_decode(reader)
+
+    cpdef binary_write(self, Writer writer, value):
+        self.type.binary_buffer_encode(writer, value)
 
     def json_encode(self, value, serialize=True, **kwargs):
         data = self.type.json_format(value)

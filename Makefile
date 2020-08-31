@@ -21,12 +21,17 @@ upload_benchmark:
 	PYTHONPATH=. python3 benchmark/update_docs.py
 
 
-
 perf: $(SOFILE)
 	PYTHONPATH=. python3 perf.py
 
-fuzz: $(SOFILE)
-	(cd fuzz && PYTHONPATH=.. python3 values.py)
+fuzz: fuzz-values fuzz-container
+
+
+fuzz-values: $(SOFILE)
+	(cd fuzz && PYTHONPATH=.. python3 values.py 100000)
+
+fuzz-container: $(SOFILE)
+	(cd fuzz && PYTHONPATH=.. python3 container.py 1000)
 
 cavro.pyx: src/* src/tests/*
 	touch cavro.pyx
@@ -42,4 +47,4 @@ clean:
 	- rm cavro*.so
 	- find ./ -name __pycache__ -exec rm -rf '{}' \;
 
-.PHONY: test clean benchmark fuzz
+.PHONY: test clean benchmark fuzz fuzz-container fuzz-values

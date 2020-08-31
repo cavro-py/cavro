@@ -5,7 +5,6 @@ from libc.stdint cimport *
 from libc.string cimport memcmp
 
 from cpython cimport array
-import array
 
 from libc.string cimport memcpy
 

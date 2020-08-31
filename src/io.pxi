@@ -7,7 +7,7 @@ cdef class Writer:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement write_u8")
 
-    cdef int write_n(self, size_t num, uint8_t *bytes) except -1:
+    cdef int write_n(self, const uint8_t[:] data) except -1:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement write_n")
 
@@ -61,5 +61,5 @@ cdef class FileObjWriter(Writer):
     cdef int write_u8(self, uint8_t val) except -1:
         self.file_obj.write(bytes([val]))
 
-    cdef int write_N(self, uint8_t[:] data):
+    cdef int write_n(self, uint8_t[:] data) except -1:
         self.file_obj.write(data)

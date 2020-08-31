@@ -1,4 +1,6 @@
 from pathlib import Path
+import uuid
+
 
 OBJ_MAGIC_BYTES = b'Obj\x01'
 cdef const uint8_t[:] OBJ_MAGIC = OBJ_MAGIC_BYTES
@@ -21,7 +23,7 @@ cdef Reader make_reader(src):
     elif hasattr(src, 'read'):
         return FileReader(src)
     else:
-        raise ValueError(f"Cannot read from '{src}'")
+        raise NotImplementedError(f"Cannot read from '{src}'")
 
 
 cdef Writer make_writer(src):
@@ -29,6 +31,9 @@ cdef Writer make_writer(src):
         return src
     elif isinstance(src, (str, Path)):
         return FileObjWriter(Path(src).open('wb'))
+    elif hasattr(src, 'write'):
+        return FileObjWriter(src)
+    raise NotImplementedError(f"Cannot write to '{src}'")
     
 
 cdef class ContainerReader:
@@ -47,9 +52,9 @@ cdef class ContainerReader:
             raise ValueError(f"Invalid file header, expected: {bytes(OBJ_MAGIC)} got {bytes(header)}")
         self.metadata = OBJ_FILE_METADATA.binary_read(self.reader)
         self.schema = Schema(self.metadata['avro.schema'])
-        codec_name = self.metadata.get('avro.codec', 'null')
+        codec_name = self.metadata.get('avro.codec', b'null')
         try:
-            self.codec = CODECS[codec_name]()
+            self.codec = CODECS[codec_name]
         except KeyError:
             raise ValueError(f"Unsupported codec: '{codec_name.decode('utf-8')}'")
         self.objects_left_in_block = 0
@@ -88,9 +93,90 @@ cdef class ContainerReader:
 
 cdef class ContainerWriter:
 
-    cdef MemoryWriter writer
+    cdef Writer writer
+    cdef MemoryWriter pending_block
+    cdef MemoryWriter next_block
+    cdef MemoryWriter next_item
+
     cdef readonly Schema _schema
     cdef readonly Codec codec
+    cdef readonly const uint8_t[:] magic
+    cdef readonly size_t max_blocksize
 
-    def __init__(self, dest):
+    cdef readonly size_t num_pending
+    cdef readonly int blocks_written
+
+    def __init__(self, dest, Schema schema, str codec='null', size_t max_blocksize=16352):
         self.writer = make_writer(dest)
+        self._schema = schema
+        cdef bytes codec_b = codec.encode('utf8')
+        self.codec = CODECS[codec_b]
+        self.magic = uuid.uuid4().bytes
+        self.max_blocksize = max_blocksize
+        self.blocks_written = 0
+
+        self.num_pending = 0
+        self.pending_block = MemoryWriter(max_blocksize)
+        self.next_item = MemoryWriter()
+        self.next_block = MemoryWriter()
+
+        self._write_header(codec_b)
+
+    def __enter__(self):
+        if self.writer is None:
+            raise ValueError('Container is closed')
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.writer is not None:
+            self.close()
+        return False
+
+    @property
+    def closed(self):
+        return self.writer is None
+
+    cdef _write_header(self, bytes codec):
+        self.writer.write_n(OBJ_MAGIC)
+        OBJ_FILE_METADATA.binary_write(self.writer, {
+            'avro.schema': json.dumps(self._schema.source),
+            'avro.codec': codec,
+        })
+        self.writer.write_n(self.magic)
+
+    def close(self):
+        if self.writer is None:
+            raise ValueError('Trying to close a closed Container')
+        self._flush_block(self.blocks_written == 0)
+        self.writer = None
+        self.next_item = None
+
+    cdef _flush_block(self, int force=False):
+        cdef size_t pending_len = self.pending_block.len
+        if force or pending_len > 0:
+            zigzag_encode_long(self.writer, self.num_pending)
+            self.next_block.reset()
+            if pending_len > 0:
+                self.codec.write_block(self.next_block, self.pending_block.view())
+            zigzag_encode_long(self.writer, self.next_block.len)
+            if self.next_block.len > 0:
+                self.writer.write_n(self.next_block.view())
+            self.writer.write_n(self.magic)
+            self.blocks_written += 1
+            self.pending_block.reset()
+            self.num_pending = 0
+
+    cpdef write_one(self, obj):
+        if self.next_item is None:
+            raise ValueError('Trying to write to closed Container')
+        self.next_item.reset()        
+        self._schema.binary_write(self.next_item, obj)
+        if self.pending_block.len + self.next_item.len > self.max_blocksize:
+            self._flush_block()
+
+        self.pending_block.write_n(self.next_item.view())
+        self.num_pending += 1
+
+    def write_many(self, objs):
+        for obj in objs:
+            self.write_one(obj)

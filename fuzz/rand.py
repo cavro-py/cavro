@@ -30,6 +30,7 @@ def make_name(max_len=15):
     first_chr = random.choice(list(string.ascii_letters))
     return first_chr + make_rand_str(max_len-1, NAME_TABLE)
 
+
 def make_name_ns(len_hint=15):
     if percent(80):
         return make_name(len_hint)

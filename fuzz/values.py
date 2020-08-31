@@ -1,3 +1,6 @@
+import itertools
+import tqdm
+import click
 import math
 import json
 import string
@@ -104,9 +107,14 @@ def almost_equal(a, b, diffval=None):
         return True
 
 
-def main():
-    num = 0
-    while True:
+@click.command()
+@click.argument('count', type=int, default=-1)
+def main(count):
+    if count < 0:
+        counter = itertools.count()
+    else:
+        counter = range(count)
+    for it in tqdm.tqdm(counter):
         try:
             tmp = io.StringIO()
             sch_json = schema.make_schema_json(5)
@@ -149,9 +157,6 @@ def main():
         except:
             print(tmp.getvalue())
             raise
-        num += 1
-        if num % 10_000 == 0:
-            print(f"Fuzz count {num}")
 
 if __name__ == '__main__':
-    sys.exit(main())
+    main()
