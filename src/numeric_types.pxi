@@ -6,6 +6,7 @@ from math import isnan, isinf
 
 cdef float FLOAT_INT_THRESHOLD = 0.001
 
+@cython.final
 cdef class BoolType(AvroType):
     type_name = "boolean"
 
@@ -48,6 +49,7 @@ cdef class BoolType(AvroType):
         return CanonicalForm('"boolean"')
 
 
+@cython.final
 cdef class IntType(AvroType):
     type_name = "int"
 
@@ -108,6 +110,7 @@ cdef class IntType(AvroType):
         return CanonicalForm('"int"')
 
 
+@cython.final
 cdef class LongType(AvroType):
     type_name = "long"
 
@@ -168,6 +171,7 @@ cdef class LongType(AvroType):
         return CanonicalForm('"long"')
 
 
+@cython.final
 cdef class FloatType(AvroType):
     type_name = "float"
 
@@ -256,6 +260,7 @@ cdef class FloatType(AvroType):
         return CanonicalForm('"float"')
 
 
+@cython.final
 cdef class DoubleType(AvroType):
     type_name = "double"
 

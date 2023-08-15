@@ -92,6 +92,7 @@ cdef class Record:
         return self.data == other_rec.data
 
 
+@cython.final
 cdef class RecordField:
     cdef readonly str name
     cdef readonly str doc
@@ -119,7 +120,7 @@ cdef class RecordField:
         })
 
 
-
+@cython.final
 cdef class FieldAccessor:
     cdef Py_ssize_t index
 
@@ -152,6 +153,7 @@ cdef object make_record_class(RecordType record_type):
     )
 
 
+@cython.final
 cdef class RecordType(NamedType):
     cdef readonly str doc
     cdef readonly tuple fields

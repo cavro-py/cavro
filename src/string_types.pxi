@@ -1,4 +1,5 @@
 
+@cython.final
 cdef class BytesType(AvroType):
     type_name = "bytes"
 
@@ -63,6 +64,7 @@ cdef class BytesType(AvroType):
         return CanonicalForm('"bytes"')
 
 
+@cython.final
 cdef class StringType(AvroType):
     type_name = "string"
 
@@ -109,6 +111,7 @@ cdef class StringType(AvroType):
         return CanonicalForm('"string"')
 
 
+@cython.final
 cdef class FixedType(NamedType):
     type_name = "fixed"
 

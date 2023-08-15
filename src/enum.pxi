@@ -16,6 +16,7 @@ cdef get_unicode_name_re():
     return SYMBOL_NAME_RE_UNICODE
 
 
+@cython.final
 cdef class EnumType(NamedType):
     type_name = 'enum'
 
