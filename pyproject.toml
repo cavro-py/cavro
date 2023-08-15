@@ -8,6 +8,7 @@ authors = [
 dependencies = [
     "numpy",
 ]
+dynamic=["readme", "requires-python", "license", "classifiers"]
 
 [project.optional-dependencies]
 dev = [
