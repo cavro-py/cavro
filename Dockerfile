@@ -15,8 +15,10 @@ COPY . /root
 
 WORKDIR /root
 
-RUN cd /root && make test
+RUN mkdir /root/wheels
+RUN cd /root && pip wheel . --no-deps -w /root/wheels
 
+RUN pip3 install /root/wheels/*.whl
 RUN pip3 install -r /root/benchmark/requirements.txt
 
 ENTRYPOINT ["/bin/sh"]

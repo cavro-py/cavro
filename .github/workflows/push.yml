@@ -14,11 +14,11 @@ jobs:
       - name: Build docker
         run: docker build -t stestagg/cavro .
       - name: Test image
-        run: docker run --rm stestagg/cavro -c 'make test'
+        run: docker run --rm stestagg/cavro -c 'PYTHONPATH=. pytest'
       - name: Run Benchmark
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: docker run -e GITHUB_TOKEN --rm stestagg/cavro -c 'make benchmark'
+        run: docker run -e GITHUB_TOKEN --rm stestagg/cavro -c 'PYTHONPATH=. python3 benchmark/main.py'
       - name: Upload updated results
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
