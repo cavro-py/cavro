@@ -38,7 +38,7 @@ def run_benchmark(test_classes, methods, num, mul):
             test_method = getattr(tester, method_name)
             record = (tester, method_name, test_method)
             warmups.append(record)
-            n_runs = tester.NUM_WARMUPS if num is None else num
+            n_runs = tester.NUM_RUNS if num is None else num
             test_methods.extend([record] * n_runs)
 
     random.shuffle(test_methods)
