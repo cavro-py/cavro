@@ -35,7 +35,7 @@ def test_bytes_decoding(encoded, expected):
     ),
 ])
 def test_bytes_encoding(raw, expected):
-    schema = cavro.Schema('"bytes"')
+    schema = cavro.Schema('"bytes"', cavro.Options(bytes_codec='utf8'))
     assert schema.binary_encode(raw) == expected
 
 
@@ -43,35 +43,48 @@ def test_bytes_encoding(raw, expected):
     ('', '""'),
     ('A', '"A"'),
     ('Hi', '"Hi"'),
-    ('£', '"\\u00a3"'),
+    ('£'.encode('latin1'), '"\\u00a3"'),
     ('"', '"\\""'),
-    ('😀', '"\\ud83d\\ude00"'),
+    ('😀', '"\\u00f0\\u009f\\u0098\\u0080"'),
     ('One\x00Two', '"One\\u0000Two"'),
     ('Powerلُلُصّبُلُلصّبُررً ॣ ॣh ॣ ॣ冗',
-     '"Power\\u0644\\u064f\\u0644\\u064f\\u0635\\u0651\\u0628\\u064f\\u0644'
-     '\\u064f\\u0644\\u0635\\u0651\\u0628\\u064f\\u0631\\u0631\\u064b \\u0963 '
-     '\\u0963h \\u0963 \\u0963\\u5197"'
+      '"Power\\u00d9\\u0084\\u00d9\\u008f\\u00d9\\u0084\\u00d9\\u008f\\u00d8\\u00b5\\u00d9\\u0091\\u00d8\\u00a8\\u00d9'
+      '\\u008f\\u00d9\\u0084\\u00d9\\u008f\\u00d9\\u0084\\u00d8\\u00b5\\u00d9\\u0091\\u00d8\\u00a8\\u00d9\\u008f\\u00d8'
+      '\\u00b1\\u00d8\\u00b1\\u00d9\\u008b \\u00e0\\u00a5\\u00a3 \\u00e0\\u00a5\\u00a3h \\u00e0\\u00a5\\u00a3 \\u00e0'
+      '\\u00a5\\u00a3\\u00e5\\u0086\\u0097"'
     ),
 ])
 def test_bytes_json_encoding(raw, expected):
-    schema = cavro.Schema('"bytes"')
-    assert schema.json_encode(raw) == expected
+    schema = cavro.Schema('"bytes"', cavro.Options(bytes_codec='utf8'))
+    encoded = schema.json_encode(raw)
+    assert encoded == expected
 
 
-@pytest.mark.parametrize('value,expected,permissive', [
-    (b'', True, True),
-    (b'Hi', True, True),
-    ('🧙🏽‍♀️', False, True),
-    (0, False, False),
-    (0.1, False, False),
-    ({'a': 'b'}, False, False),
-    ([''], False, False),
+@pytest.mark.parametrize('value,expected,can_encode_utf,can_encode_latin1,coerce,coerce_utf', [
+    (b'',         True , True , True , True , True),
+    (b'Hi',       True , True , True , True , True),
+    ('🧙🏽‍♀️',        False, True , False, False, True),
+    (0,           False, False, False, False, True),
+    (0.1,         False, False, False, False, True),
+    ({'a': 'b'},  False, False, False, False, True),
+    ({'🧙🏽‍♀️': 'b'}, False, False, False, False, True),
+    ([''],        False, False, False, False, True),
 ])
-def test_bytes_can_encode(value, expected, permissive):
+def test_bytes_can_encode(value, expected, can_encode_utf, can_encode_latin1, coerce, coerce_utf):
     schema = cavro.Schema('"bytes"')
-    assert schema.can_encode(value) == expected
-    schema = cavro.Schema('"bytes"', permissive=True)
-    assert schema.can_encode(value) == permissive
+    schema_encode_utf = cavro.Schema('"bytes"', cavro.Options(bytes_codec='utf-8'))
+    schema_encode_latin1 = cavro.Schema('"bytes"', cavro.Options(bytes_codec='latin-1'))
+    schema_coerce = cavro.Schema('"bytes"', cavro.Options(coerce_values_to_str=True))
+    schema_coerce_utf = cavro.Schema('"bytes"', cavro.Options(coerce_values_to_str=True, bytes_codec='utf-8'))
+
+    for schema, expected in [
+        (schema, expected),
+        (schema_encode_utf, can_encode_utf),
+        (schema_encode_latin1, can_encode_latin1),
+        (schema_coerce, coerce),
+        (schema_coerce_utf, coerce_utf)
+    ]:
+        assert schema.can_encode(value) == expected
 
 
 def test_bytes_encoding_decoding():

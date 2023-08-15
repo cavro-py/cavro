@@ -77,7 +77,6 @@ cdef class MapType(AvroType):
         return out
 
     cpdef object convert_value(self, object orig_value):
-        cdef int threshold = FIT_POOR if self.permissive else FIT_OK
         cdef int key_fitness
         cdef int value_fitness
         cdef AvroType key_type = self.key_type
@@ -95,13 +94,13 @@ cdef class MapType(AvroType):
             except (TypeError, ValueError, IndexError):
                 raise ValueError(f"'{value}' is not a mapping")
             key_fitness = key_type.get_value_fitness(key)
-            if key_fitness < threshold:
+            if key_fitness == FIT_NONE:
                 raise ValueError(f"'{key}' is not a valid key for map type")
             elif key_fitness < FIT_EXACT:
                 return self._make_converted_map(iter(value))
 
             value_fitness = value_type.get_value_fitness(item_value)
-            if value_fitness < threshold:
+            if value_fitness == FIT_NONE:
                 raise ValueError(f"'{item_value}' is not a valid value for map type: {type(self.value_type).__name__}")
             elif value_fitness < FIT_EXACT:
                 return self._make_converted_map(iter(value))

@@ -3,8 +3,10 @@ cimport cython
 from cpython.object cimport Py_SIZE
 from libc.stdint cimport *
 from libc.string cimport memcmp
-
+import dataclasses
+import re
 from cpython cimport array
+from cython cimport bint
 
 from libc.string cimport memcpy
 
@@ -32,6 +34,7 @@ def _perf(fn):
     return _perf
 
 
+include "src/option.pxi"
 include "src/io.pxi"
 include "src/buffer.pxi"
 include "src/zigzag.pxi"

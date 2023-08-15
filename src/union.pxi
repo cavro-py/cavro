@@ -1,21 +1,25 @@
 
+@cython.final
 cdef class UnionType(AvroType):
     type_name = "union"
 
     cdef readonly tuple union_types
-    cdef Schema schema
 
     def __init__(self, schema, source, namespace):
         super().__init__(schema, source, namespace)
-        self.schema = schema
         self.union_types = tuple(AvroType.for_source(schema, s, namespace) for s in source)
-        if not schema.permissive:
-            if len(self.union_types) == 0:
-                raise ValueError("Unions must contain at least one member type")
-            seen_types = set()
-            for member in self.union_types:
-                if isinstance(member, UnionType):
-                    raise ValueError("Unions may not immediately contain other unions")
+        
+        if len(self.union_types) == 0 and not self.options.allow_empty_unions:
+            raise ValueError("Unions must contain at least one member type")
+
+        if self.options.allow_duplicate_union_types and self.options.allow_nested_unions:
+            return
+        
+        seen_types = set()
+        for member in self.union_types:
+            if not self.options.allow_nested_unions and isinstance(member, UnionType):
+                raise ValueError("Unions may not immediately contain other unions")
+            if not self.options.allow_duplicate_union_types:  
                 if not isinstance(member, (RecordType, FixedType, EnumType)):
                     member_type = type(member)
                     if member_type in seen_types:
@@ -26,7 +30,6 @@ cdef class UnionType(AvroType):
         return dict()
 
     cdef Py_ssize_t resolve_from_value(self, object value) except -1:
-        cdef int threshold = FIT_POOR if self.schema.permissive else FIT_OK
         cdef AvroType candidate
         cdef int type_fitness
         cdef int cur_fit = FIT_NONE
@@ -40,7 +43,7 @@ cdef class UnionType(AvroType):
                     return i
                 cur_fit = type_fitness
             i += 1
-        if cur_fit < threshold or best_index < 0:
+        if cur_fit == FIT_NONE or best_index < 0:
             raise ValueError(f"Value '{value}' not valid for UnionType")
         return best_index
 

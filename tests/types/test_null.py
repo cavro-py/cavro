@@ -13,8 +13,8 @@ def test_null_encoding():
         schema.binary_encode('')
 
 
-def test_permissive_null_encoding():
-    schema = cavro.Schema('"null"', permissive=True)
+def test_allow_false_null_encoding():
+    schema = cavro.Schema('"null"', cavro.Options(allow_false_values_for_null=True))
     assert schema.binary_encode(None) == b''
     assert schema.binary_encode(False) == b''
     assert schema.binary_encode(0) == b''
@@ -30,14 +30,17 @@ def test_null_json_encoding():
     with pytest.raises(ValueError):
         schema.binary_encode(1)
 
-def test_permissive_null_json_encoding():
-    schema = cavro.Schema('"null"')
+
+def test_allow_false_null_json_encoding():
+    schema = cavro.Schema('"null"', cavro.Options(allow_false_values_for_null=True))
     assert schema.json_encode(None) == 'null'
+    assert schema.json_encode(False) == 'null'
     with pytest.raises(ValueError):
         schema.binary_encode(1)
 
+
 @pytest.mark.parametrize(
-    'given, can_encode, permissive_encode',
+    'given, can_encode, allow_false_encode',
     (
         (None, True, True),
         ('', False, True),
@@ -48,10 +51,11 @@ def test_permissive_null_json_encoding():
         ('x', False, False),
     )
 )
-def test_json_can_encode(given, can_encode, permissive_encode):
+def test_json_can_encode(given, can_encode, allow_false_encode):
     assert cavro.Schema('"null"').can_encode(given) == can_encode
-    assert cavro.Schema('"null"', permissive=True).can_encode(given) == permissive_encode
+    allow_schema = cavro.Schema('"null"', cavro.Options(allow_false_values_for_null=True))
+    assert allow_schema.can_encode(given) == allow_false_encode
 
-def test_null_encoding():
+def test_null_canonical_form():
     schema = cavro.Schema('"null"')
     assert schema.canonical_form == '"null"'

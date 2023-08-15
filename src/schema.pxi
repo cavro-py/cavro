@@ -11,13 +11,15 @@ cdef class Schema:
 
     cdef readonly dict named_types
     cdef readonly object source
-    cdef readonly bint permissive
+    cdef readonly Options options
     cdef readonly AvroType type
 
-    def __init__(self, source, permissive=False):
+    def __init__(self, source, options=DEFAULT_OPTIONS, **extra_options):
         if isinstance(source, (str, bytes)):
             source = json.loads(source)
-        self.permissive = permissive
+        if extra_options:
+            options = dataclasses.replace(options, **extra_options)
+        self.options = options
         self.named_types = {}
         self.source = source
         self.type = AvroType.for_schema(self)
@@ -42,8 +44,7 @@ cdef class Schema:
 
     def can_encode(self, value):
         fitness = self.type.get_value_fitness(value)
-        threshold = FIT_POOR if self.permissive else FIT_OK
-        return fitness >= threshold
+        return fitness > FIT_NONE
 
     def binary_encode(self, value):
         cdef MemoryWriter buffer = MemoryWriter()

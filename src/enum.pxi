@@ -1,4 +1,21 @@
 
+
+SYMBOL_NAME_RE_STRICT = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
+SYMBOL_NAME_RE_UNICODE = None
+
+cdef get_unicode_name_re():
+    global SYMBOL_NAME_RE_UNICODE
+    if SYMBOL_NAME_RE_UNICODE is None:
+        import unicodedata, sys
+        letters = set()
+        for c in range(sys.maxunicode + 1):
+            if unicodedata.category(chr(c)) in ('Ll', 'Lu'):
+                letters.add(chr(c))
+        letter_pattern = re.escape(''.join(letters))
+        SYMBOL_NAME_RE_UNICODE = re.compile(fr'[{letter_pattern}_]\w*')
+    return SYMBOL_NAME_RE_UNICODE
+
+
 cdef class EnumType(NamedType):
     type_name = 'enum'
 
@@ -7,17 +24,30 @@ cdef class EnumType(NamedType):
 
     def __init__(self, schema, source, namespace):
         NamedType.__init__(self, schema, source, namespace)
-        if not schema.permissive:
-            if not isinstance(source['symbols'], list):
-                raise ValueError("Enum symbols must be an array of strings")
+        raw_symbols = source['symbols']
+        if not isinstance(raw_symbols, (list, tuple)):
+            raise ValueError("Enum symbols must be a list of strings")
+        
+        if schema.options.enum_symbols_must_be_unique:
             seen_symbols = set()
-            for symbol in source['symbols']:
-                if not isinstance(symbol, str):
-                    raise ValueError('Enum symbols must be strings')
+            for symbol in raw_symbols:
                 if symbol in seen_symbols:
                     raise ValueError(f"Enum symbols must be unique. '{symbol}' found twice")
                 seen_symbols.add(symbol)
-        self.symbols = tuple(source['symbols'])
+        else:
+            seen_symbols = raw_symbols
+
+        name_pattern = SYMBOL_NAME_RE_STRICT if schema.options.ascii_name_rules else get_unicode_name_re()
+        
+        if schema.options.enforce_enum_symbol_name_rules:
+            for symbol in seen_symbols:
+                if not isinstance(symbol, str):
+                    raise ValueError('Enum symbols must be strings')
+                if schema.options.enforce_enum_symbol_name_rules:
+                    if not name_pattern.fullmatch(symbol):
+                        raise ValueError(f"Enum symbol '{symbol}' is not a valid name")
+        
+        self.symbols = tuple(raw_symbols)
         cdef size_t i
         self.symbol_indexes = {}
         for i, symbol in enumerate(self.symbols):

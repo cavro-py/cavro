@@ -1,6 +1,6 @@
 
 cdef int FIT_NONE = 0  # Value is never valid for type
-cdef int FIT_POOR = 1  # Value may be valid in permissive mode, as last-resort
+cdef int FIT_POOR = 1  # Value may be valid depending on the schema options
 cdef int FIT_OK = 2    # Value can be converted to the correct type
 cdef int FIT_EXACT = 3 # Value is the exact type and needs no further conversion
 
@@ -34,7 +34,7 @@ cdef dict _strip_keys(dict source, set keys):
 cdef class AvroType:
     type_name = NotImplemented
 
-    cdef readonly bool permissive
+    cdef readonly Options options
     cdef readonly dict metadata
 
     @classmethod
@@ -61,7 +61,7 @@ cdef class AvroType:
         return AvroType.for_source(schema, schema.source)
 
     def __init__(self, schema, source, namespace):
-        self.permissive = schema.permissive
+        self.options = schema.options
         self.metadata = self._extract_metadata(source)
 
     cpdef str get_type_name(self):
@@ -93,8 +93,7 @@ cdef class AvroType:
 
     cdef int assert_value(self, object value) except -1:
         cdef int fitness = self.get_value_fitness(value)
-        cdef int threshold = FIT_POOR if self.permissive else FIT_OK
-        if fitness < threshold:
+        if fitness <= FIT_NONE:
             raise ValueError(f"'{value}' not valid for {type(self).__name__}")
 
     def json_format(self, value):
@@ -121,7 +120,7 @@ cdef class NamedType(AvroType):
         cdef Schema schema_t = schema
         super().__init__(schema, source, namespace)
         cdef str name = source['name']
-        if not schema.permissive:
+        if not schema.options.allow_primitive_name_collision:
             if name in PRIMITIVE_TYPES:
                 raise ValueError(f"'{name}' is not allowed as a name")
         self.name = name

@@ -224,16 +224,15 @@ cdef class RecordType(NamedType):
             return level
 
     def json_format(self, value):
-        cdef Record record
-        if not isinstance(value, self.record):
-            raise ValueError(f"Value is not compatible with this schema: {value}")
-        record = value
+        cdef Record record = self._convert_value(value)
         out = {}
         for field, value in zip(self.fields, record.data):
             out[field.name] = field.type.json_format(value)
         return out
 
     cpdef object _convert_value(self, object value):
+        if isinstance(value, self.record):
+            return value
         return self.record(value)
 
     cdef CanonicalForm canonical_form(self, set created):

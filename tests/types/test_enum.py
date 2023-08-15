@@ -21,7 +21,10 @@ def test_enum_json_encoding():
 
 
 def test_enum_blank_symbol():
-    schema = cavro.Schema({'type': 'enum', 'name': 'A', 'symbols': ['a', '', 'c']})
+    schema = cavro.Schema(
+        {'type': 'enum', 'name': 'A', 'symbols': ['a', '', 'c']}, 
+        cavro.Options(enforce_enum_symbol_name_rules=False)
+    )
     assert schema.binary_encode('a') == b'\x00'
     assert schema.binary_encode('') == b'\x02'
     assert schema.binary_encode('c') == b'\x04'
@@ -44,16 +47,28 @@ def test_enum_with_invalid_symbol_type():
             'symbols': True
         })
 
-def test_enum_with_invalid_symbols():
-    with pytest.raises(ValueError):
-        cavro.Schema({
+@pytest.mark.parametrize('bad_sym,is_uni', [
+    ('2', False),
+    ('говорить', True),
+    ('daß', True),
+    ('option٢', True),
+    (2, False),
+])
+def test_enum_with_invalid_symbols(bad_sym, is_uni):
+    defn = {
             'type': 'enum',
             'name': 'A',
-            'symbols': ['one', 2, 'do']
-        })
-    schema = cavro.Schema({
-            'type': 'enum',
-            'name': 'A',
-            'symbols': ['one', 2, 'do']
-        }, permissive=True)
-    assert schema.binary_encode(2) == b'\x02'
+            'symbols': ['one', bad_sym, 'do']
+        }
+
+    with pytest.raises(ValueError): # Default is to fail
+        cavro.Schema(defn)
+    if is_uni:
+        schema = cavro.Schema(defn, ascii_name_rules=False)
+        assert schema.binary_encode(bad_sym) == b'\x02'
+    else:
+        with pytest.raises(ValueError): # This one also fails extended unicode naming
+            cavro.Schema(defn, ascii_name_rules=False)
+    
+    schema = cavro.Schema(defn, enforce_enum_symbol_name_rules=False)
+    assert schema.binary_encode(bad_sym) == b'\x02'

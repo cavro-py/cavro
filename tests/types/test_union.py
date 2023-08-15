@@ -1,11 +1,12 @@
 import cavro
 import pytest
 
+
 def test_empty_union():
     with pytest.raises(ValueError) as exc:
         cavro.Schema([])
     assert str(exc.value) == 'Unions must contain at least one member type'
-    avro_type = cavro.Schema([], permissive=True)
+    avro_type = cavro.Schema([], allow_empty_unions=True)
     assert isinstance(avro_type.type, cavro.UnionType)
     assert len(avro_type.type.union_types) == 0
 
@@ -13,7 +14,7 @@ def test_duplicate_item_union():
     with pytest.raises(ValueError) as exc:
         cavro.Schema(['int', 'int'])
     assert str(exc.value) == "Unions may not have more than one member of type 'int'"
-    avro_type = cavro.Schema(['int', 'int'], permissive=True)
+    avro_type = cavro.Schema(['int', 'int'], allow_duplicate_union_types=True)
     assert isinstance(avro_type.type, cavro.UnionType)
     assert len(avro_type.type.union_types) == 2
     assert avro_type.binary_encode(1) == b"\x00\x02"

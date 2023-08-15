@@ -1,17 +1,15 @@
 
 cdef class NullType(AvroType):
     type_name = "null"
-    cdef Schema schema
 
     def __init__(self, schema, source, namespace):
         super().__init__(schema, source, namespace)
-        self.schema = schema
 
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type'})
 
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
-        if value is None or (self.schema.permissive and not value):
+        if value is None or (self.options.allow_false_values_for_null and not value):
             return 0
         raise ValueError(f'{repr(value)} not compatible with NullType')
 
@@ -21,7 +19,7 @@ cdef class NullType(AvroType):
     cdef int get_value_fitness(self, value) except -1:
         if value is None:
             return FIT_EXACT
-        if not value:
+        if not value and self.options.allow_false_values_for_null:
             return FIT_POOR
         return FIT_NONE
 

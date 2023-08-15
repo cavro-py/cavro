@@ -29,7 +29,7 @@ TESTS = read_tests()
 
 @pytest.mark.parametrize("schema_text, canonical, fingerprint", TESTS)
 def test_avro_schema_tests(schema_text, canonical, fingerprint):
-    schema = cavro.Schema(schema_text, permissive=True)
+    schema = cavro.Schema(schema_text, cavro.PERMISSIVE_OPTIONS)
     assert schema.canonical_form == canonical
     for method in ['sha256', 'md5']:
         assert (

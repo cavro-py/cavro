@@ -38,15 +38,15 @@ def test_invalid_value_can_encode(given):
 
 
 @givens(*TRUTHY_VALUES)
-def test_permissive_true_encoding(given):
-    schema = cavro.Schema('"boolean"', permissive=True)
+def test_coerce_true_encoding(given):
+    schema = cavro.Schema('"boolean"', cavro.Options(coerce_values_to_boolean=True))
     assert schema.can_encode(given) == True
     assert schema.binary_encode(given) == b'\x01'
 
 
 @givens(*FALSEY_VALUES)
-def test_permissive_false_encoding(given):
-    schema = cavro.Schema('"boolean"', permissive=True)
+def test_coerce_false_encoding(given):
+    schema = cavro.Schema('"boolean"', cavro.Options(coerce_values_to_boolean=True))
     assert schema.can_encode(given) == True
     assert schema.binary_encode(given) == b'\x00'
 
@@ -54,10 +54,15 @@ def test_permissive_false_encoding(given):
 @givens(*FALSEY_VALUES)
 def test_false_json_encoding(given):
     schema = cavro.Schema('"boolean"')
-    assert schema.json_encode(given) == 'false'
+    coerce_schema = cavro.Schema('"boolean"', cavro.Options(coerce_values_to_boolean=True))
+    with pytest.raises(ValueError):
+        schema.json_encode(given)
+    assert coerce_schema.json_encode(given) == 'false'
 
 @givens(*TRUTHY_VALUES)
-def test_false_json_encoding(given):
+def test_true_json_encoding(given):
     schema = cavro.Schema('"boolean"')
-    assert schema.json_encode(given) == 'true'
-
+    coerce_schema = cavro.Schema('"boolean"', cavro.Options(coerce_values_to_boolean=True))
+    with pytest.raises(ValueError):
+        schema.json_encode(given)
+    assert coerce_schema.json_encode(given) == 'true'

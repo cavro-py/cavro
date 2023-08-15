@@ -38,7 +38,7 @@ def test_int_overflow():
     assert schema.can_encode(2**32) == False
     with pytest.raises(OverflowError) as exc:
         schema.binary_encode(2**33)
-    assert "value too large" in str(exc.value)
+    assert "out of range" in str(exc.value)
 
 
 def test_int_json():
@@ -93,10 +93,10 @@ def test_long_overflow():
     assert schema.can_encode(2**64) == False
     with pytest.raises(OverflowError) as exc:
         schema.binary_encode(2**65)
-    assert "too large" in str(exc.value)
+    assert "out of range" in str(exc.value)
     with pytest.raises(OverflowError) as exc:
         schema.binary_encode(-2**65)
-    assert "too large" in str(exc.value)
+    assert "out of range" in str(exc.value)
 
 
 def test_long_json():
@@ -150,7 +150,7 @@ def test_double_json():
     (1e100, True),
     (True, False),
     ("100", False),
-    (1000 ** 1000, True), # see comment in code
+    (1000 ** 1000, False),
 ])
 def test_double_can_encode(value, encodable):
     schema = cavro.Schema('"double"')

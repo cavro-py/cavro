@@ -63,20 +63,20 @@ def test_string_json_encoding(raw, expected):
     assert schema.json_encode(raw) == expected
 
 
-@pytest.mark.parametrize('value,expected,permissive', [
+@pytest.mark.parametrize('value,expected,coerce', [
     ('', True, True),
     ('🧙🏽‍♀️', True, True),
     (0, False, True),
     (0.1, False, True),
     (b'', False, True),
-    ({'a': 'b'}, False, False),
-    ([''], False, False),
+    ({'a': 'b'}, False, True),
+    ([''], False, True),
 ])
-def test_string_can_encode(value, expected, permissive):
+def test_string_can_encode(value, expected, coerce):
     schema = cavro.Schema('"string"')
     assert schema.can_encode(value) == expected
-    schema = cavro.Schema('"string"', permissive=True)
-    assert schema.can_encode(value) == permissive
+    schema = cavro.Schema('"string"', cavro.Options(coerce_values_to_str=True))
+    assert schema.can_encode(value) == coerce
 
 
 def test_string_encoding_decoding():

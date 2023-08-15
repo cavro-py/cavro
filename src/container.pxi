@@ -106,7 +106,7 @@ cdef class ContainerWriter:
     cdef readonly size_t num_pending
     cdef readonly int blocks_written
 
-    def __init__(self, dest, Schema schema, str codec='null', size_t max_blocksize=16352):
+    def __cinit__(self, dest, Schema schema, str codec='null', size_t max_blocksize=16352):
         self.writer = make_writer(dest)
         self._schema = schema
         cdef bytes codec_b = codec.encode('utf8')
@@ -143,7 +143,7 @@ cdef class ContainerWriter:
     cdef _write_header(self, bytes codec):
         self.writer.write_n(OBJ_MAGIC)
         OBJ_FILE_METADATA.binary_write(self.writer, {
-            'avro.schema': json.dumps(self._schema.source),
+            'avro.schema': json.dumps(self._schema.source).encode(),
             'avro.codec': codec,
         })
         self.writer.write_n(self.magic)

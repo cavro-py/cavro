@@ -52,3 +52,10 @@ def test_asdict_nested():
     assert rec._asdict() == {'a': 1, 'b': 'hi', 'c': {'a': 2, 'b': 'hoho', 'c':  None}}
     assert rec.c.a == 2
     assert isinstance(rec.c, schema.type.record)
+
+def test_record_json_encoding():
+    schema = cavro.Schema({'type': 'record', 'name': 'A', 'fields': [
+        {'name': 'a', 'type': 'int'},
+        {'name': 'b', 'type': 'long'},
+    ]})
+    assert schema.json_encode({'a': 1, 'b': 2}) == '{"a": 1, "b": 2}'

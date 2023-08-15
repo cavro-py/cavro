@@ -8,7 +8,7 @@ cdef class MemoryWriter(Writer):
     cdef readonly array.array buffer
     cdef size_t len
 
-    def __init__(self, initial_size=4096):
+    def __cinit__(self, initial_size=4096):
         self.buffer = array.clone(byte_buffer_template, initial_size, zero=True)
         self.len = 0
 

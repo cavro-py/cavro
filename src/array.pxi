@@ -60,14 +60,13 @@ cdef class ArrayType(AvroType):
         return out
 
     cpdef object convert_value(self, object value):
-        cdef int threshold = FIT_POOR if self.permissive else FIT_OK
         cdef int item_fitness
         cdef AvroType item_type = self.item_type
 
         it = iter(value)
         for item in it:
             item_fitness = item_type.get_value_fitness(item)
-            if item_fitness < threshold:
+            if item_fitness == FIT_NONE:
                 raise ValueError(f"'{item}' is not a valid value for array")
             elif item_fitness < FIT_EXACT:
                 return self._make_converted_list(iter(value))

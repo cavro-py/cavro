@@ -37,5 +37,5 @@ import pytest
     ]
 )
 def test_canonical_form(schema, expected):
-    schema_obj = cavro.Schema(schema)
+    schema_obj = cavro.Schema(schema, cavro.PERMISSIVE_OPTIONS)
     assert schema_obj.canonical_form == expected
