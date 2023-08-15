@@ -17,7 +17,7 @@ def run_test(tester, name, fn):
         before = time.perf_counter()
         fn()
         after = time.perf_counter()
-    except:
+    except Exception:
         print("FAIL".ljust(59 - len(label)) + "|")
     else:
         taken = after - before

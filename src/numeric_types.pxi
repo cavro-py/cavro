@@ -219,12 +219,12 @@ cdef class FloatType(AvroType):
         elif value > FLT_MAX:
             if self.options.clamp_float_overflow:
                 return FLT_MAX
-        elif isnan(value):
-            if self.options.clamp_float_overflow:
-                return 0.0
-        elif isinf(value):
-            if self.options.clamp_float_overflow:
-                return FLT_MAX
+        # elif isnan(value):
+        #     if self.options.clamp_float_overflow:
+        #         return 0.0
+        # elif isinf(value):
+        #     if self.options.clamp_float_overflow:
+        #         return FLT_MAX
         else:
             return value
         raise OverflowError(f"Value {value} out of range for float")
@@ -292,9 +292,9 @@ cdef class DoubleType(AvroType):
         elif isinf(value):
             if self.options.clamp_float_overflow:
                 return FLT_MAX
-        else:
-            return value
-        raise OverflowError(f"Value {value} out of range for float")
+        
+        return value
+        #raise OverflowError(f"Value {value} out of range for float")
 
     def json_format(self, value):
         return self._convert_value(value)

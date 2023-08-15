@@ -93,7 +93,7 @@ cdef class AvroType:
 
     cdef int assert_value(self, object value) except -1:
         cdef int fitness = self.get_value_fitness(value)
-        if fitness <= FIT_NONE:
+        if fitness == FIT_NONE:
             raise ValueError(f"'{value}' not valid for {type(self).__name__}")
 
     def json_format(self, value):
