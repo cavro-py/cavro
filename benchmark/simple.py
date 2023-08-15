@@ -28,7 +28,7 @@ STATIONS = (
 def make_readings(num):
     readings = []
     now = time.time() * 1000
-    for _ in range(num):
+    for _ in range(int(num)):
         readings.append({
             'station': numpy.random.choice(STATIONS),
             'time': int(now - (numpy.random.rand() * 10_000)),
@@ -46,8 +46,8 @@ class SimpleRecordEncodeDict:
     NUM_RUNS = 3
     NAME = "simple_record_encode_dict"
 
-    def __init__(self):
-        self.values = make_readings(100_000)
+    def __init__(self, mul=1):
+        self.values = make_readings(100_000 * mul)
 
     def avro(self):
         schema = avro.schema.Parse(SCHEMA)
@@ -78,8 +78,8 @@ class SimpleRecordEncode(SimpleRecordEncodeDict):
 
     NAME = "simple_record_encode"
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, mul=1):
+        super().__init__(mul)
         schema = cavro.Schema(SCHEMA)
         # TODO: make this nicer in the API
         record_type = schema.named_types['test.Weather'].record
@@ -101,8 +101,8 @@ class SimpleRecordDecode:
     NUM_RUNS = 3
     NAME = "simple_record_decode"
 
-    def __init__(self):
-        raw = make_readings(100_000)
+    def __init__(self, mul=1):
+        raw = make_readings(100_000 * mul)
         schema = cavro.Schema(SCHEMA)
         self.values = [schema.binary_encode(r) for r in raw]
 

@@ -83,3 +83,45 @@ def test_string_encoding_decoding():
     schema = cavro.Schema('"string"')
     encoded = schema.binary_encode('abacus')
     assert schema.binary_decode(encoded) == 'abacus'
+
+
+def test_fixed_encoding():
+    schema = cavro.Schema('{"type": "fixed", "size": 4, "name": "test"}')
+    encoded = schema.binary_encode(b'abcd')
+    assert encoded == b'abcd'
+    assert schema.binary_decode(encoded) == b'abcd'
+
+
+def test_fixed_encoding_padding():
+    schema = cavro.Schema({"type": "fixed", "size": 4, "name": "test"})
+    permissive_schema = cavro.Schema({"type": "fixed", "size": 4, "name": "test"}, zero_pad_fixed=True, truncate_fixed=True)
+    
+    with pytest.raises(ValueError):
+        schema.binary_encode(b'ab')
+    assert permissive_schema.binary_encode(b'ab') == b'ab\x00\x00'
+
+    with pytest.raises(ValueError):
+        schema.binary_encode(b'abcde')
+    assert permissive_schema.binary_encode(b'abcde') == b'abcd'
+    
+
+def test_fixed_json():
+    schema = cavro.Schema({"type": "fixed", "size": 4, "name": "test"})
+    permisive_schema = cavro.Schema({"type": "fixed", "size": 4, "name": "test"}, zero_pad_fixed=True, truncate_fixed=True)
+
+    assert schema.json_encode(b'abcd') == '"abcd"'
+    with pytest.raises(ValueError):
+        schema.json_encode(b'ab')
+    assert permisive_schema.json_encode(b'ab') == '"ab\\u0000\\u0000"'
+
+    with pytest.raises(ValueError):
+        schema.json_encode(b'abcde')
+    assert permisive_schema.json_encode(b'abcde') == '"abcd"'
+
+
+def test_fixed_read_json():
+    schema = cavro.Schema({"type": "fixed", "size": 4, "name": "test"})
+    assert schema.json_decode('"abcd"') == b'abcd'
+    assert schema.json_decode('"ab\\u0000\\u0000"') == b'ab\x00\x00'
+    with pytest.raises(ValueError):
+        schema.json_decode('"ab"')

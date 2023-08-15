@@ -56,6 +56,12 @@ def test_json_can_encode(given, can_encode, allow_false_encode):
     allow_schema = cavro.Schema('"null"', cavro.Options(allow_false_values_for_null=True))
     assert allow_schema.can_encode(given) == allow_false_encode
 
+def test_json_decode():
+    schema = cavro.Schema('"null"')
+    assert schema.json_decode('null') is None
+    with pytest.raises(ValueError):
+        schema.json_decode('1')
+
 def test_null_canonical_form():
     schema = cavro.Schema('"null"')
     assert schema.canonical_form == '"null"'

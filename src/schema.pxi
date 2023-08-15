@@ -66,3 +66,8 @@ cdef class Schema:
         if serialize:
             return json.dumps(data, **kwargs)
         return data
+
+    def json_decode(self, value, deserialize=True, **kwargs):
+        if deserialize:
+            value = json.loads(value, **kwargs)
+        return self.type.json_decode(value)

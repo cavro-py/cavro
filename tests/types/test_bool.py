@@ -59,6 +59,7 @@ def test_false_json_encoding(given):
         schema.json_encode(given)
     assert coerce_schema.json_encode(given) == 'false'
 
+
 @givens(*TRUTHY_VALUES)
 def test_true_json_encoding(given):
     schema = cavro.Schema('"boolean"')
@@ -66,3 +67,11 @@ def test_true_json_encoding(given):
     with pytest.raises(ValueError):
         schema.json_encode(given)
     assert coerce_schema.json_encode(given) == 'true'
+
+
+def test_json_decoding():
+    schema = cavro.Schema('"boolean"')
+    assert schema.json_decode('true') == True
+    assert schema.json_decode('false') == False
+    with pytest.raises(TypeError):
+        schema.json_decode('1')

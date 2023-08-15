@@ -143,6 +143,41 @@ def test_double_json():
     assert isinstance(encoded, str)
     assert float(encoded) == 3.14159e+201
 
+
+def test_decode_float_json():
+    schema = cavro.Schema('"float"')
+    assert schema.json_decode("3.14159") == 3.14159
+    with pytest.raises(ValueError):
+        schema.json_decode('"3.14159"')
+    with pytest.raises(OverflowError):
+        schema.json_decode('1e100')
+
+
+def test_decode_double_json():
+    schema = cavro.Schema('"double"')
+    assert schema.json_decode("3.14159") == 3.14159
+    with pytest.raises(ValueError):
+        schema.json_decode('"3.14159"')
+
+
+def test_decode_int_json():
+    schema = cavro.Schema('"int"')
+    assert schema.json_decode("23") == 23
+    with pytest.raises(ValueError):
+        schema.json_decode('12.23')
+    with pytest.raises(OverflowError):
+        schema.json_decode('4294967296')
+
+
+def test_decode_long_json():
+    schema = cavro.Schema('"long"')
+    assert schema.json_decode("23") == 23
+    with pytest.raises(ValueError):
+        schema.json_decode('12.23')
+    with pytest.raises(OverflowError):
+        schema.json_decode('18446744073709551616')
+
+
 @pytest.mark.parametrize('value,encodable', [
     (3.14, True),
     (3, True),
@@ -169,3 +204,18 @@ def test_double_can_encode(value, encodable):
 def test_float_can_encode(value, encodable):
     schema = cavro.Schema('"float"')
     assert schema.can_encode(value) == encodable
+
+
+def test_float_nan_inf():
+    schema = cavro.Schema('"float"')
+    assert schema.binary_encode(float('nan')) == b'\x00\x00\xc0\x7f'
+    assert schema.binary_encode(float('inf')) == b'\x00\x00\x80\x7f'
+    assert schema.binary_encode(float('-inf')) == b'\x00\x00\x80\xff'
+
+
+def test_double_nan_inf():
+    schema = cavro.Schema('"double"')
+    assert schema.binary_encode(float('nan')) == b'\x00\x00\x00\x00\x00\x00\xf8\x7f'
+    assert schema.binary_encode(float('inf')) == b'\x00\x00\x00\x00\x00\x00\xf0\x7f'
+    assert schema.binary_encode(float('-inf')) == b'\x00\x00\x00\x00\x00\x00\xf0\xff'
+

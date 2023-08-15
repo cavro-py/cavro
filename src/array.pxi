@@ -34,6 +34,12 @@ cdef class ArrayType(AvroType):
                 out.append(value)
                 length -= 1
 
+    cdef json_format(self, value):
+        return [self.item_type.json_format(item) for item in value]
+
+    cdef json_decode(self, value):
+        return [self.item_type.json_decode(item) for item in value]
+
     cdef int get_value_fitness(self, value) except -1:
         cdef int level = FIT_OK
         if isinstance(value, (list, tuple, numpy.ndarray)):

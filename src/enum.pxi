@@ -81,9 +81,14 @@ cdef class EnumType(NamedType):
         # if value is valid for type, then it needs no conversion
         return value
 
-    def json_format(self, value):
+    cdef json_format(self, value):
         if value not in self.symbol_indexes:
             raise KeyError(f"'{value}' invalid for enum")
+        return value
+
+    cdef json_decode(self, value):
+        if value not in self.symbol_indexes:
+            raise ValueError(f"'{value}' invalid for enum")
         return value
 
     cdef CanonicalForm canonical_form(self, set created):

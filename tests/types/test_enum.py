@@ -72,3 +72,11 @@ def test_enum_with_invalid_symbols(bad_sym, is_uni):
     
     schema = cavro.Schema(defn, enforce_enum_symbol_name_rules=False)
     assert schema.binary_encode(bad_sym) == b'\x02'
+
+
+def test_decoding_json():
+    schema = cavro.Schema({'type': 'enum', 'name': 'A', 'symbols': ['a', 'b', 'c']})
+    assert schema.json_decode('"a"') == 'a'
+    assert schema.json_decode('"c"') == 'c'
+    with pytest.raises(ValueError):
+        schema.json_decode('"d"')

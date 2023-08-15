@@ -22,9 +22,9 @@ class ComplexSchema:
     NUM_RUNS = 3
     NAME = "complex_schema"
 
-    def __init__(self):
+    def __init__(self, mul):
         schema = cavro.Schema(SCHEMA)
-        raw_values = [make_value_for_type(schema.type, 5) for _ in range(1000)]
+        raw_values = [make_value_for_type(schema.type, 5) for _ in range(int(1000 * mul))]
         self.values = [schema.binary_encode(value) for value in raw_values]
 
     def avro(self):

@@ -8,6 +8,7 @@ from benchmark import simple, many_numbers, complex, pypifile
 
 import github
 import pygit2
+import click
 
 
 def run_test(tester, name, fn):
@@ -27,17 +28,18 @@ def run_test(tester, name, fn):
 
 METHODS = ['avro', 'cavro', 'fastavro']
 
-def run_benchmark(test_classes):
+def run_benchmark(test_classes, methods, num, mul):
     results = defaultdict(lambda: defaultdict(set))
-    testers = [t() for t in test_classes]
+    testers = [t(mul) for t in test_classes]
     warmups = []
     test_methods = []
     for tester in testers:
-        for method_name in METHODS:
+        for method_name in methods:
             test_method = getattr(tester, method_name)
             record = (tester, method_name, test_method)
             warmups.append(record)
-            test_methods.extend([record] * tester.NUM_RUNS)
+            n_runs = tester.NUM_WARMUPS if num is None else num
+            test_methods.extend([record] * n_runs)
 
     random.shuffle(test_methods)
     print(f" {len(warmups)} Warmups ".center(60, '='))
@@ -135,10 +137,25 @@ ALL_TEST_CLASSES = [
 ]
 
 
-def main():
-    all_results = run_benchmark(ALL_TEST_CLASSES)
+@click.command()
+@click.option('--method', '-m', multiple=True, help="Run only the specified method(s)")
+@click.option('--test', '-t', multiple=True, help="Run only the specified test(s)")
+@click.option('--no-store', '-x', is_flag=True, help="Don't store results", default=False)
+@click.option('--num', '-n', type=int, help="Number of times to run each test", default=None)
+@click.option('--mul', type=float, help="Ask test runners to multiply their runtime by this factor", default=1.)
+def main(method, test, no_store, num, mul):
+    if test:
+        test_classes = [t for t in ALL_TEST_CLASSES if t.NAME in test]
+    else:
+        test_classes = ALL_TEST_CLASSES
+
+    if not method:
+        method = METHODS
+
+    all_results = run_benchmark(test_classes, method, num, mul)
     print_results(all_results)
-    store_results(all_results)
+    if not no_store:
+        store_results(all_results)
 
 if __name__ == '__main__':
     main()

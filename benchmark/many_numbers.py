@@ -15,8 +15,9 @@ SCHEMA = """{
 class ManyNumbersBase:
     NUM_RUNS = 3
 
-    def __init__(self):
-        self.raw_values = [int(i) for i in numpy.random.randint((2**63)-1, size=100_000)]
+    def __init__(self, mul=1):
+        n = 100_000 * mul
+        self.raw_values = [int(i) for i in numpy.random.randint((2**63)-1, size=int(n))]
 
 
 class ManyNumbersDecode(ManyNumbersBase):
@@ -29,8 +30,8 @@ class ManyNumbersDecode(ManyNumbersBase):
     NUM_RUNS = 3
     NAME = "many_numbers_decode"
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, mul):
+        super().__init__(mul)
         schema = cavro.Schema(SCHEMA)
         self.value = schema.binary_encode(self.raw_values)
 
@@ -60,8 +61,8 @@ class ManyNumbersEncode(ManyNumbersBase):
 
     NAME = "many_numbers_encode"
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, mul):
+        super().__init__(mul)
         self.values = self.raw_values
 
     def avro(self):

@@ -37,6 +37,23 @@ cdef class MapType(AvroType):
                 out[key] = value
                 length -= 1
 
+    cdef json_format(self, value):
+        cdef str key
+        cdef dict out = {}
+        if hasattr(value, 'items'):
+            value = value.items()
+        for key, item_value in value:
+            out[key] = self.value_type.json_format(item_value)
+        return out
+
+    cdef json_decode(self, value):
+        cdef dict inp = value
+        cdef dict out = {}
+        cdef str key
+        for key, val in inp.items():
+            out[key] = self.value_type.json_decode(val)
+        return out
+
     cdef int get_value_fitness(self, value) except -1:
         cdef int level = FIT_OK
         if isinstance(value, dict):

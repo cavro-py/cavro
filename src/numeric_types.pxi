@@ -37,10 +37,10 @@ cdef class BoolType(AvroType):
             return py_bool(value)
         raise ValueError(f"Invalid value for boolean: {value}")
 
-    def json_format(self, value):
+    cdef json_format(self, value):
         return self._convert_value(value)
 
-    def json_decode(self, value):
+    cdef json_decode(self, value):
         cdef py_bool decoded = value
         return decoded
 
@@ -94,12 +94,15 @@ cdef class IntType(AvroType):
             return value
         raise OverflowError(f"Value {value} out of range for int")
 
-    def json_format(self,object value):
+    cdef json_format(self, value):
         return self._convert_value(value)
 
-    def json_decode(self, value):
-        cdef int32_t decoded = value
-        return decoded
+    cdef json_decode(self, value):
+        if isinstance(value, (float, py_bool, bool_)) or not isinstance(value, int):
+            raise ValueError(f"Invalid value for int: {value}")
+        if value < INT32_MIN or value > INT32_MAX:
+            raise OverflowError(f"Value {value} out of range for int")
+        return value
 
     cdef CanonicalForm canonical_form(self, set created):
         return CanonicalForm('"int"')
@@ -151,8 +154,15 @@ cdef class LongType(AvroType):
             return value
         raise OverflowError(f"Value {value} out of range for long")
 
-    def json_format(self, object value):
+    cdef json_format(self, object value):
         return self._convert_value(value)
+
+    cdef json_decode(self, value):
+        if isinstance(value, (float, py_bool, bool_)) or not isinstance(value, int):
+            raise ValueError(f"Invalid value for long: {value}")
+        if value < INT64_MIN or value > INT64_MAX:
+            raise OverflowError(f"Value {value} out of range for int")
+        return value
 
     cdef CanonicalForm canonical_form(self, set created):
         return CanonicalForm('"long"')
@@ -213,24 +223,34 @@ cdef class FloatType(AvroType):
                             raise
                 else:
                     raise ValueError(f"Invalid value for float: '{value}'")
+        
+        if isnan(value):
+            if self.options.clamp_float_overflow:
+                return 0.0
+            return value
+        if isinf(value):
+            if self.options.clamp_float_overflow:
+                return FLT_MAX
+            return value
         if value < -FLT_MAX:
             if self.options.clamp_float_overflow:
                 return -FLT_MAX
         elif value > FLT_MAX:
             if self.options.clamp_float_overflow:
                 return FLT_MAX
-        # elif isnan(value):
-        #     if self.options.clamp_float_overflow:
-        #         return 0.0
-        # elif isinf(value):
-        #     if self.options.clamp_float_overflow:
-        #         return FLT_MAX
         else:
             return value
         raise OverflowError(f"Value {value} out of range for float")
 
-    def json_format(self, value):
+    cdef json_format(self, value):
         return self._convert_value(value)
+
+    cdef json_decode(self, value):
+        if not isinstance(value, float):
+            raise ValueError(f"Invalid value for float: {value}")
+        if value < -FLT_MAX or value > FLT_MAX:
+            raise OverflowError(f"Value {value} out of range for float")
+        return value
 
     cdef CanonicalForm canonical_form(self, set created):
         return CanonicalForm('"float"')
@@ -281,7 +301,7 @@ cdef class DoubleType(AvroType):
                         value = float(value)
                     except OverflowError:
                         if self.options.clamp_float_overflow:
-                            return FLT_MAX
+                            return DBL_MAX
                         else:
                             raise
                 else:
@@ -289,15 +309,19 @@ cdef class DoubleType(AvroType):
         if isnan(value):
             if self.options.clamp_float_overflow:
                 return 0.0
-        elif isinf(value):
+        elif  (value):
             if self.options.clamp_float_overflow:
-                return FLT_MAX
+                return DBL_MAX
         
         return value
-        #raise OverflowError(f"Value {value} out of range for float")
 
-    def json_format(self, value):
+    cdef json_format(self, value):
         return self._convert_value(value)
+
+    cdef json_decode(self, value):
+        if not isinstance(value, float):
+            raise ValueError(f"Invalid value for float: {value}")
+        return value
 
     cdef CanonicalForm canonical_form(self, set created):
         return CanonicalForm('"double"')

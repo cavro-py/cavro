@@ -1,0 +1,21 @@
+[project]
+name = "cavro"
+description = "avro codec implemented with Cython"
+version = "0.1.0"
+authors = [
+    { name = "Steve Stagg", email = "ste@sta.gg" }
+]
+dependencies = [
+    "numpy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "avro-python3",
+    "pytest",
+    "tqd",
+    "click",
+]
+
+[build-system]
+requires = ["cython", "setuptools"]

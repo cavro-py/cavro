@@ -63,35 +63,35 @@ https://stestagg.github.io/cavro/
 
 ## Value Reading (Json encoding)
 
--   [ ] Null
--   [ ] bool
--   [ ] int
--   [ ] long
--   [ ] float
--   [ ] double
--   [ ] bytes
--   [ ] string
--   [ ] record
--   [ ] fixed
--   [ ] enum
--   [ ] array
--   [ ] map
+-   [x] Null
+-   [x] bool
+-   [x] int
+-   [x] long
+-   [x] float
+-   [x] double
+-   [x] bytes
+-   [x] string
+-   [x] record
+-   [x] fixed
+-   [x] enum
+-   [x] array
+-   [x] map
 
 ## Value Writing (Json encoding)
 
--   [ ] Null
--   [ ] bool
--   [ ] int
--   [ ] long
--   [ ] float
--   [ ] double
--   [ ] bytes
--   [ ] string
--   [ ] record
--   [ ] fixed
--   [ ] enum
--   [ ] array
--   [ ] map
+-   [x] Null
+-   [x] bool
+-   [x] int
+-   [x] long
+-   [x] float
+-   [x] double
+-   [x] bytes
+-   [x] string
+-   [x] record
+-   [x] fixed
+-   [x] enum
+-   [x] array
+-   [x] map
 
 ## Schema Validation
 

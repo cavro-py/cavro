@@ -4,10 +4,12 @@ cdef class UnionType(AvroType):
     type_name = "union"
 
     cdef readonly tuple union_types
+    cdef readonly dict by_name_map
 
     def __init__(self, schema, source, namespace):
         super().__init__(schema, source, namespace)
         self.union_types = tuple(AvroType.for_source(schema, s, namespace) for s in source)
+        self.by_name_map = {}
         
         if len(self.union_types) == 0 and not self.options.allow_empty_unions:
             raise ValueError("Unions must contain at least one member type")
@@ -17,6 +19,12 @@ cdef class UnionType(AvroType):
         
         seen_types = set()
         for member in self.union_types:
+            if isinstance(member, NamedType):
+                self.by_name_map[member.name] = member
+                self.by_name_map[member.get_type_name()] = member
+            else:
+                self.by_name_map[member.type_name] = member
+
             if not self.options.allow_nested_unions and isinstance(member, UnionType):
                 raise ValueError("Unions may not immediately contain other unions")
             if not self.options.allow_duplicate_union_types:  
@@ -70,12 +78,24 @@ cdef class UnionType(AvroType):
                 return level
         return level
 
-    def json_format(self, value):
+    cdef json_format(self, value):
         cdef size_t type_index = self.resolve_from_value(value)
         cdef AvroType union_type = self.union_types[type_index]
         if isinstance(union_type, NullType):
             return None
         return {union_type.get_type_name(): union_type.json_format(value)}
+
+    cdef json_decode(self, value):
+        cdef dict value_dict = value
+        if len(value) > 1:
+            raise ValueError(f"Value {value} is not a valid union value (expect exactly one item)")
+        cdef AvroType item_type
+        (type_name, item_value), = value_dict.items()
+        try:
+            item_type = self.by_name_map[type_name]
+        except KeyError:
+            raise ValueError(f"Value {value} is not a valid union value (unknown type '{type_name}')")
+        return item_type.json_decode(item_value)
 
     cpdef object convert_value(self, object value):
         cdef Py_ssize_t index = self.resolve_from_value(value)

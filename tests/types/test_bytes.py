@@ -91,3 +91,7 @@ def test_bytes_encoding_decoding():
     schema = cavro.Schema('"bytes"')
     encoded = schema.binary_encode(b'abacus')
     assert schema.binary_decode(encoded) == b'abacus'
+
+def test_bytes_decoding_json():
+    schema = cavro.Schema('"bytes"', cavro.Options(bytes_codec='utf8'))
+    assert schema.json_decode('"abacus"') == b'abacus'

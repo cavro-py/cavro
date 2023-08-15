@@ -23,10 +23,12 @@ cdef class NullType(AvroType):
             return FIT_POOR
         return FIT_NONE
 
-    def json_format(self, value):
+    cdef json_format(self, value):
         return None
 
-    def json_decode(self, value):
+    cdef json_decode(self, value):
+        if value is not None:
+            raise ValueError(f'Expected null, got {repr(value)}')
         return None
 
     cpdef object _convert_value(self, object value):

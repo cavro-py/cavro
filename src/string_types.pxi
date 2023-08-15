@@ -38,9 +38,13 @@ cdef class BytesType(AvroType):
             return FIT_NONE
         return MAX_FIT
 
-    def json_format(self, value):
+    cdef json_format(self, value):
         value = self._convert_value(value)
         return value.decode('latin-1')
+
+    cdef json_decode(self, value):
+        cdef str sval = value
+        return sval.encode('latin-1')
 
     cpdef object _convert_value(self, object value):
         if isinstance(value, bytes):
@@ -85,8 +89,12 @@ cdef class StringType(AvroType):
             return FIT_POOR
         return FIT_NONE
 
-    def json_format(self, value):
+    cdef json_format(self, value):
         return self._convert_value(value)
+
+    cdef json_decode(self, value):
+        cdef str sval = value
+        return sval
 
     cpdef object _convert_value(self, object value):
         if isinstance(value, str):
@@ -156,9 +164,16 @@ cdef class FixedType(NamedType):
             return FIT_OK
         return FIT_NONE
 
-    def json_format(self, value):
+    cdef json_format(self, value):
         value = self._convert_value(value)
         return value.decode('utf8')
+
+    cdef json_decode(self, value):
+        cdef str sval = value
+        cdef bytes encoded = sval.encode('latin1')
+        if len(encoded) != self.size:
+            raise ValueError(f"Invalid length for fixed field: {len(encoded)} != {self.size}")
+        return encoded
 
     cpdef object _convert_value(self, object value):
         if not isinstance(value, bytes):

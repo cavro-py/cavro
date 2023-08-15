@@ -96,13 +96,13 @@ cdef class AvroType:
         if fitness == FIT_NONE:
             raise ValueError(f"'{value}' not valid for {type(self).__name__}")
 
-    def json_format(self, value):
+    cdef json_format(self, value):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement json_format")
 
-    def json_decode(self, value):
+    cdef json_decode(self, value):
         raise NotImplementedError(
-            f"{type(self).__name__} does not implement json_format")
+            f"{type(self).__name__} does not implement json_decode")
 
     cdef CanonicalForm canonical_form(self, set created):
         raise NotImplementedError(

@@ -85,6 +85,12 @@ cdef class Record:
             items[field.name] = data
         return items
 
+    def __eq__(self, other):
+        if not isinstance(other, self.Type.record):
+            return False
+        cdef Record other_rec = other
+        return self.data == other_rec.data
+
 
 cdef class RecordField:
     cdef readonly str name
@@ -223,12 +229,31 @@ cdef class RecordType(NamedType):
                 return FIT_POOR
             return level
 
-    def json_format(self, value):
+    cdef json_format(self, value):
         cdef Record record = self._convert_value(value)
+        cdef AvroType field_type
         out = {}
         for field, value in zip(self.fields, record.data):
-            out[field.name] = field.type.json_format(value)
+            field_type = field.type
+            out[field.name] = field_type.json_format(value)
         return out
+
+    cdef json_decode(self, value):
+        cdef list data = [None] * len(self.fields)
+        cdef RecordField field
+        cdef Record rec
+        cdef Py_ssize_t index = 0
+
+        for field in self.fields:
+            field_value = value.get(field.name, field.default_value)
+            if field_value is NO_DEFAULT:
+                raise ValueError(f"required field '{field.name}' missing")
+            data[index] = field.type.json_decode(field_value)
+            index += 1
+        rec = Record.__new__(self.record)
+        rec.data = data
+        return rec
+
 
     cpdef object _convert_value(self, object value):
         if isinstance(value, self.record):

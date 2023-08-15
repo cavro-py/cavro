@@ -27,6 +27,7 @@ def test_map_non_string_keys():
     with pytest.raises(TypeError) as exc:
         schema.binary_encode({('x', ): 2})
 
+
 def test_map_from_fuzz_1():
     schema = cavro.Schema({"type": "map", "values": [
         {"type": "string"},
@@ -41,3 +42,24 @@ def test_map_from_fuzz_1():
         00  // end of map
     """)
 
+
+def test_map_json_encode():
+    schema = cavro.Schema({"type": "map", 'values': 'int'})
+    assert schema.json_encode({}) == '{}'
+    assert schema.json_encode({'': 0}) == '{"": 0}'
+    assert schema.json_encode({'A': 1, 'B': 2}) == '{"A": 1, "B": 2}'
+    assert schema.json_encode({'A': 1, 'B': 2, 'XX': 99999}) == '{"A": 1, "B": 2, "XX": 99999}'
+    with pytest.raises(TypeError) as exc:
+        schema.json_encode({1: 2})
+    with pytest.raises(ValueError) as exc:
+        schema.json_encode({'A': 'x'})
+
+
+def test_map_json_decode():
+    schema = cavro.Schema({"type": "map", 'values': 'int'})
+    assert schema.json_decode('{}') == {}
+    assert schema.json_decode('{"": 0}') == {'': 0}
+    assert schema.json_decode('{"A": 1, "B": 2}') == {'A': 1, 'B': 2}
+    assert schema.json_decode('{"A": 1, "B": 2, "XX": 99999}') == {'A': 1, 'B': 2, 'XX': 99999}
+    with pytest.raises(ValueError) as exc:
+        schema.json_decode('{"A": "x"}')
