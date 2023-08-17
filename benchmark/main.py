@@ -11,7 +11,7 @@ import pygit2
 import click
 
 
-def run_test(tester, name, fn):
+def run_test(tester, name, fn, fail):
     label = f'| {tester.NAME} {name}: '
     print(label, end='', flush=True)
     try:
@@ -20,6 +20,8 @@ def run_test(tester, name, fn):
         after = time.perf_counter()
     except Exception:
         print("FAIL".ljust(59 - len(label)) + "|")
+        if fail:
+            raise
     else:
         taken = after - before
         rest = "%.2fs" % taken
@@ -28,7 +30,7 @@ def run_test(tester, name, fn):
 
 METHODS = ['avro', 'cavro', 'fastavro']
 
-def run_benchmark(test_classes, methods, num, mul):
+def run_benchmark(test_classes, methods, num, mul, fail):
     results = defaultdict(lambda: defaultdict(set))
     testers = [t(mul) for t in test_classes]
     warmups = []
@@ -44,10 +46,10 @@ def run_benchmark(test_classes, methods, num, mul):
     random.shuffle(test_methods)
     print(f" {len(warmups)} Warmups ".center(60, '='))
     for tester, name, fn in warmups:
-        run_test(tester, name, fn)
+        run_test(tester, name, fn, False)
     print(f" Running {len(test_methods)} tests ".center(60, '='))
     for tester, name, fn in test_methods:
-        results[tester.NAME][name].add(run_test(tester, name, fn))
+        results[tester.NAME][name].add(run_test(tester, name, fn, fail))
     print("".center(60, "="))
     return interpret_raw_results(results)
 
@@ -143,7 +145,8 @@ ALL_TEST_CLASSES = [
 @click.option('--no-store', '-x', is_flag=True, help="Don't store results", default=False)
 @click.option('--num', '-n', type=int, help="Number of times to run each test", default=None)
 @click.option('--mul', type=float, help="Ask test runners to multiply their runtime by this factor", default=1.)
-def main(method, test, no_store, num, mul):
+@click.option('--fail', is_flag=True, help="Fail on first error", default=False)
+def main(method, test, no_store, num, mul, fail):
     if test:
         test_classes = [t for t in ALL_TEST_CLASSES if t.NAME in test]
     else:
@@ -152,7 +155,7 @@ def main(method, test, no_store, num, mul):
     if not method:
         method = METHODS
 
-    all_results = run_benchmark(test_classes, method, num, mul)
+    all_results = run_benchmark(test_classes, method, num, mul, fail)
     print_results(all_results)
     if not no_store:
         store_results(all_results)
