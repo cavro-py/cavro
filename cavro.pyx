@@ -9,6 +9,7 @@ import decimal
 from cpython cimport array
 from cython cimport bint
 import uuid
+import math
 
 from libc.string cimport memcpy
 

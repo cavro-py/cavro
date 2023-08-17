@@ -107,20 +107,24 @@ cdef class ContainerWriter:
     cdef readonly int blocks_written
 
     def __cinit__(self, dest, Schema schema, str codec='null', size_t max_blocksize=16352):
-        self.writer = make_writer(dest)
-        self._schema = schema
-        cdef bytes codec_b = codec.encode('utf8')
-        self.codec = CODECS[codec_b]
-        self.magic = uuid.uuid4().bytes
-        self.max_blocksize = max_blocksize
-        self.blocks_written = 0
-
         self.num_pending = 0
         self.pending_block = MemoryWriter(max_blocksize)
         self.next_item = MemoryWriter()
         self.next_block = MemoryWriter()
 
-        self._write_header(codec_b)
+        self.writer = make_writer(dest)
+        try:
+            self._schema = schema
+            codec_b = codec.encode('utf8')
+            self.codec = CODECS[codec_b]
+            self.magic = uuid.uuid4().bytes
+            self.max_blocksize = max_blocksize
+            self.blocks_written = 0
+
+            self._write_header(codec_b)
+        except:
+            self.writer = None
+            raise
 
     def __enter__(self):
         if self.writer is None:
@@ -132,7 +136,7 @@ cdef class ContainerWriter:
             self.close()
         return False
 
-    def __dealloc__(self):
+    def __del__(self):
         if self.writer is not None:
             self.close()
 
@@ -151,6 +155,7 @@ cdef class ContainerWriter:
     def close(self):
         if self.writer is None:
             raise ValueError('Trying to close a closed Container')
+        cdef Writer writer = self.writer
         self._flush_block(self.blocks_written == 0)
         self.writer = None
         self.next_item = None

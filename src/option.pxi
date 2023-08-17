@@ -8,9 +8,11 @@ LOGICAL_TYPES = (
 @dataclasses.dataclass
 cdef class Options:
 
+    fingerprint_returns_digest: bint = False
+
     record_can_encode_dict: bint = True
     allow_primitive_name_collision: bint = False
-    
+
     enum_symbols_must_be_unique: bint = True
     enforce_enum_symbol_name_rules: bint = True
     ascii_name_rules: bint = True
@@ -36,6 +38,8 @@ cdef class Options:
 
     types_str_to_schema: bint = False
     logical_types: tuple[LogicalType] = LOGICAL_TYPES
+
+    
 
 
 DEFAULT_OPTIONS = Options()

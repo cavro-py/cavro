@@ -47,6 +47,8 @@ cdef class Schema:
         else:
             hasher = hashlib.new(method, **kwargs)
         hasher.update(self.canonical_form.encode('utf-8'))
+        if self.options.fingerprint_returns_digest:
+            return hasher.digest()
         return hasher
 
     def find_type(self, str namespace, str name):

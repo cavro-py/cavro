@@ -29,22 +29,33 @@ cdef class DecimalType(LogicalType):
     cdef readonly int scale
     cdef readonly object scale_val
     cdef readonly object context
+    cdef readonly object size
 
-    def __init__(self, precision, scale):
+    def __init__(self, precision, scale, size):
         self.precision = precision
         self.scale = scale
         self.scale_val = decimal.Decimal('1').scaleb(-scale)
         self.context = decimal.Context(prec=self.precision, clamp=1)
+        self.size = size
 
     @classmethod
     def _for_type(cls, underlying: AvroType):
         meta = underlying.metadata
-        if 'precision' not in meta:
-            return None
+        precision = meta.get('precision')
+        if precision is None:
+            return 
         scale = meta.get('scale', 0)
         if not isinstance(scale, int):
             raise ValueError('scale must be an integer')
-        return cls(meta['precision'], scale)
+        
+        size = None
+        if isinstance(underlying, FixedType):
+            size = underlying.size
+            max_precision = math.floor(math.log10(2) * (8 * size - 1))
+            if precision > max_precision: # Numbers may not fit into the fixed
+                return None
+
+        return cls(precision, scale, size)
 
     cdef encode_value(self, value):
         if not isinstance(value, decimal.Decimal):
