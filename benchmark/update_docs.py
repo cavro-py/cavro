@@ -65,8 +65,8 @@ def make_commit_graph(results):
         hashes.append(result['commit'][:5])
         for lib in all_libs:
             val = result['results'].get(lib, {}).get('min')
-            if val is not None:  # Not sure how this happened
-                lib_times[lib].append(val)
+            lib_times[lib].append(val)
+            if val is not None:
                 max_val = max(max_val, val)
 
     axes = plt.axes()
