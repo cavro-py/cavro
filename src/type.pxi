@@ -36,6 +36,7 @@ cdef class AvroType:
 
     cdef readonly Options options
     cdef readonly dict metadata
+    cdef readonly LogicalType logical_type
 
     @classmethod
     def for_source(cls, schema, source, namespace=None):
@@ -63,6 +64,17 @@ cdef class AvroType:
     def __init__(self, schema, source, namespace):
         self.options = schema.options
         self.metadata = self._extract_metadata(source)
+        self._setup_logical(schema, source)
+
+    cdef _setup_logical(self, schema, source):
+        cdef str logical_type_name = source.get('logicalType')
+        if logical_type_name is None:
+            return
+        logical_type_cls = schema.logical_types.get(logical_type_name)
+        if logical_type_cls is None:
+            return
+        self.logical_type = logical_type_cls.for_underlying(self)
+
 
     cpdef str get_type_name(self):
         return self.type_name
@@ -75,15 +87,27 @@ cdef class AvroType:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement convert_value")
 
-    cpdef object convert_value(self, object value):
-        self.assert_value(value)
+    cpdef object convert_value(self, object value, check_value=False):
+        if check_value:
+            self.assert_value(value)
         return self._convert_value(value)
 
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+        if self.logical_type is not None:
+            value = self.logical_type.encode_value(value)
+        return self._binary_buffer_encode(buffer, value)
+
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         raise NotImplementedError(
-            f"{type(self).__name__} does not implement binary_buffer_encode")
+            f"{type(self).__name__} does not implement _binary_buffer_encode")
 
     cdef binary_buffer_decode(self, Reader buffer):
+        value = self._binary_buffer_decode(buffer)
+        if self.logical_type is not None:
+            return self.logical_type.decode_value(value)
+        return value
+
+    cdef _binary_buffer_decode(self, Reader buffer):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement binary_buffer_decode")
 
@@ -108,6 +132,35 @@ cdef class AvroType:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement canonical_form")
 
+    cpdef dict _get_schema_extra(self, set created):
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement _get_schema_extra")
+
+    cpdef get_schema(self, created=None):
+        if created is None:
+            created = set()
+        if isinstance(self, NamedType):
+            type_name = self.get_type_name()
+            if type_name in created:
+                return type_name
+            else:
+                created.add(type_name)
+
+        extra = self._get_schema_extra(created)
+        if self.metadata:
+            extra.update(self.metadata)
+        if extra:
+            extra['type'] = self.type_name
+            return extra
+        else:
+            return self.type_name
+
+    def __str__(self):
+        if self.options.types_str_to_schema:
+            return json.dumps(self.get_schema())
+        else:
+            return super().__str__()
+
 
 cdef class NamedType(AvroType):
 
@@ -131,6 +184,16 @@ cdef class NamedType(AvroType):
 
     cpdef str get_type_name(self):
         return resolve_namespaced_name(self.namespace, self.name)
+
+    cpdef dict _get_schema_extra(self, set created):
+        schema = {
+            'name': self.name,
+        }
+        if self.namespace:
+            schema['namespace'] = self.namespace
+        if self.aliases:
+            schema['aliases'] = list(self.aliases)
+        return schema
 
 
 PRIMITIVE_TYPES = {

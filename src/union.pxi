@@ -34,8 +34,16 @@ cdef class UnionType(AvroType):
                         raise ValueError(f"Unions may not have more than one member of type '{ member_type.type_name }'")
                     seen_types.add(member_type)
 
+    cdef _setup_logical(self, schema, source):
+        return
+
     cdef dict _extract_metadata(self, source):
         return dict()
+
+    cpdef get_schema(self, created=None):
+        if created is None:
+            created = set()
+        return [t.get_schema(created) for t in self.union_types]
 
     cdef Py_ssize_t resolve_from_value(self, object value) except -1:
         cdef AvroType candidate
@@ -55,14 +63,14 @@ cdef class UnionType(AvroType):
             raise ValueError(f"Value '{value}' not valid for UnionType")
         return best_index
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef size_t type_index = self.resolve_from_value(value)
         cdef AvroType encode_type = self.union_types[type_index]
         zigzag_encode_long(buffer, type_index)
         encode_type.binary_buffer_encode(buffer, value)
         return 0
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, Reader buffer):
         cdef Py_ssize_t index = zigzag_decode_long(buffer)
         if index < 0 or index > len(self.union_types):
             raise ValueError(f"Value {index} is not valid for a union of {len(self.union_types)} items")
@@ -97,7 +105,7 @@ cdef class UnionType(AvroType):
             raise ValueError(f"Value {value} is not a valid union value (unknown type '{type_name}')")
         return item_type.json_decode(item_value)
 
-    cpdef object convert_value(self, object value):
+    cpdef object convert_value(self, object value, check_value=True):
         cdef Py_ssize_t index = self.resolve_from_value(value)
         return self.union_types[index].convert_value(value)
 

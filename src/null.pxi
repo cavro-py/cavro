@@ -8,12 +8,15 @@ cdef class NullType(AvroType):
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type'})
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cpdef dict _get_schema_extra(self, set created):
+        return {}
+
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         if value is None or (self.options.allow_false_values_for_null and not value):
             return 0
         raise ValueError(f'{repr(value)} not compatible with NullType')
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, Reader buffer):
         return None
 
     cdef int get_value_fitness(self, value) except -1:

@@ -1,5 +1,5 @@
 PYVER=$(shell python3 -c 'import sys;v=sys.version_info;print(f"{v.major}{v.minor}")')
-SOFILE=cavro.cpython-$(PYVER)m-darwin.so
+SOFILE=cavro.cpython-$(PYVER)-darwin.so
 
 test: $(SOFILE)
 	PYTHONPATH=. pytest -sv
@@ -36,6 +36,7 @@ cavro.pyx: src/* src/tests/*
 
 $(SOFILE): cavro.pyx
 	python3 setup.py build_ext --inplace
+	mv src/$(SOFILE) ./
 
 clean:
 	rm -rf build

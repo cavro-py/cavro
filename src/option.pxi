@@ -1,4 +1,8 @@
 
+LOGICAL_TYPES = (
+    DecimalType,
+    UUIDType,
+)
 
 @dataclasses.dataclass
 cdef class Options:
@@ -29,6 +33,9 @@ cdef class Options:
     clamp_int_overflow: bint = False
     clamp_float_overflow: bint = False
 
+    types_str_to_schema: bint = False
+    logical_types: tuple[LogicalType] = LOGICAL_TYPES
+
 
 DEFAULT_OPTIONS = Options()
 PERMISSIVE_OPTIONS = Options(
@@ -50,5 +57,4 @@ PERMISSIVE_OPTIONS = Options(
     clamp_int_overflow=True,
     clamp_float_overflow=True,
     coerce_values_to_float=True,
-
 )

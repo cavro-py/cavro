@@ -6,14 +6,17 @@ cdef class BytesType(AvroType):
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type'})
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
-        value = self._convert_value(value)
+    cpdef dict _get_schema_extra(self, set created):
+        return {}
+
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
+        value = self.convert_value(value)
         cdef Py_ssize_t length = len(value)
         zigzag_encode_long(buffer, length)
         if length:
             buffer.write_n(value)
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, Reader buffer):
         cdef uint64_t length = zigzag_decode_long(buffer)
         return buffer.read_bytes(length)
 
@@ -40,7 +43,7 @@ cdef class BytesType(AvroType):
         return MAX_FIT
 
     cdef json_format(self, value):
-        value = self._convert_value(value)
+        value = self.convert_value(value)
         return value.decode('latin-1')
 
     cdef json_decode(self, value):
@@ -71,14 +74,17 @@ cdef class StringType(AvroType):
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type'})
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cpdef dict _get_schema_extra(self, set created):
+        return {}
+
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         value = self._convert_value(value).encode('utf8')
         cdef size_t length = len(value)
         zigzag_encode_long(buffer, length)
         if length:
             buffer.write_n(value)
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, Reader buffer):
         cdef uint64_t length = zigzag_decode_long(buffer)
         return buffer.read_bytes(length).decode('utf-8')
 
@@ -124,14 +130,14 @@ cdef class FixedType(NamedType):
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type', 'name', 'namespace', 'aliases', 'size'})
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         value = self._convert_value(value)
         cdef Py_ssize_t length = len(value)
         if length != self.size:
             raise ValueError(f"Invalid length for fixed field: {length} != {self.size}")
         buffer.write_n(value)
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, Reader buffer):
         return bytes(buffer.read_n(self.size))
 
     cdef int get_value_fitness(self, value) except -1:

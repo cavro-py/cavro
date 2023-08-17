@@ -14,14 +14,17 @@ cdef class ArrayType(AvroType):
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type', 'items'})
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cpdef dict _get_schema_extra(self, set created):
+        return {'items': self.item_type.get_schema(created)}
+
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         if len(value):
             zigzag_encode_long(buffer, len(value))
             for item in value:
                 self.item_type.binary_buffer_encode(buffer, item)
         zigzag_encode_long(buffer, 0)
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, Reader buffer):
         cdef list out = []
         cdef size_t length
         cdef str key
@@ -62,10 +65,10 @@ cdef class ArrayType(AvroType):
         cdef AvroType item_type = self.item_type
         cdef list out = []
         for item in value:
-            out.append(item_type.convert_value(item))
+            out.append(item_type._convert_value(item))
         return out
 
-    cpdef object convert_value(self, object value):
+    cpdef object convert_value(self, object value, check_value=True):
         cdef int item_fitness
         cdef AvroType item_type = self.item_type
 

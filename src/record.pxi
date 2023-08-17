@@ -119,6 +119,21 @@ cdef class RecordField:
             'type': self.type.canonical_form(created),
         })
 
+    def get_schema(self, created):
+        schema = {
+            'name': self.name, 
+            'type': self.type.get_schema(created), 
+        }
+        if self.doc:
+            schema['doc'] = self.doc
+        if self.aliases:
+            schema['aliases'] = list(self.aliases)
+        if self.order != Order.ASC:
+            schema['order'] = self.order.value
+        if self.default_value is not NO_DEFAULT:
+            schema['default'] = self.type.json_format(self.default_value)
+        return schema
+
 
 @cython.final
 cdef class FieldAccessor:
@@ -155,6 +170,8 @@ cdef object make_record_class(RecordType record_type):
 
 @cython.final
 cdef class RecordType(NamedType):
+    type_name = 'record'
+
     cdef readonly str doc
     cdef readonly tuple fields
     cdef dict field_dict
@@ -179,7 +196,11 @@ cdef class RecordType(NamedType):
             'fields'
         })
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cpdef dict _get_schema_extra(self, set created):
+        extra = super(RecordType, self)._get_schema_extra(created)
+        return dict(extra, fields=[f.get_schema(created) for f in self.fields])
+
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef RecordField field
         cdef list rec_data
         cdef Record rec
@@ -200,7 +221,7 @@ cdef class RecordType(NamedType):
                     raise ValueError(f"required field '{field.name}' missing")
                 field.type.binary_buffer_encode(buffer, field_value)
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, Reader buffer):
         cdef RecordField field
         cdef list data = [None] * len(self.fields)
         cdef Record rec
@@ -255,7 +276,6 @@ cdef class RecordType(NamedType):
         rec = Record.__new__(self.record)
         rec.data = data
         return rec
-
 
     cpdef object _convert_value(self, object value):
         if isinstance(value, self.record):

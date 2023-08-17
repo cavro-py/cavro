@@ -39,7 +39,6 @@ cdef class EnumType(NamedType):
             seen_symbols = raw_symbols
 
         name_pattern = SYMBOL_NAME_RE_STRICT if schema.options.ascii_name_rules else get_unicode_name_re()
-        
         if schema.options.enforce_enum_symbol_name_rules:
             for symbol in seen_symbols:
                 if not isinstance(symbol, str):
@@ -64,11 +63,15 @@ cdef class EnumType(NamedType):
             'symbols'
         })
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cpdef dict _get_schema_extra(self, set created):
+        extra = super(EnumType, self)._get_schema_extra(created)
+        return dict(extra, symbols=list(self.symbols))
+
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef size_t index = self.symbol_indexes[value]
         zigzag_encode_long(buffer, index)
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, Reader buffer):
         return self.symbols[zigzag_decode_long(buffer)]
 
     cdef int get_value_fitness(self, value) except -1:

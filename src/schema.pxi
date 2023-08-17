@@ -14,6 +14,8 @@ cdef class Schema:
     cdef readonly Options options
     cdef readonly AvroType type
 
+    cdef readonly dict logical_types
+
     def __init__(self, source, options=DEFAULT_OPTIONS, **extra_options):
         if isinstance(source, (str, bytes)):
             source = json.loads(source)
@@ -22,6 +24,15 @@ cdef class Schema:
         self.options = options
         self.named_types = {}
         self.source = source
+
+        logical_by_name = {}
+        self.logical_types = logical_by_name
+        for logical_type in options.logical_types:
+            type_name = logical_type.logical_name
+            if type_name in logical_by_name:
+                raise ValueError(f"Logical type '{type_name}' already defined")
+            logical_by_name[type_name] = logical_type
+
         self.type = AvroType.for_schema(self)
 
     cdef void register_type(self, str namespace, str name, AvroType avro_type):

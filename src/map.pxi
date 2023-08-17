@@ -13,7 +13,10 @@ cdef class MapType(AvroType):
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type', 'values'})
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cpdef dict _get_schema_extra(self, set created):
+        return {'values': self.value_type.get_schema(created)}
+
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         if hasattr(value, 'items'):
             value = value.items()
         zigzag_encode_long(buffer, len(value))
@@ -23,7 +26,7 @@ cdef class MapType(AvroType):
                 self.value_type.binary_buffer_encode(buffer, item_value)
             zigzag_encode_long(buffer, 0)
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, Reader buffer):
         cdef dict out = {}
         cdef size_t length
         cdef str key
@@ -90,10 +93,10 @@ cdef class MapType(AvroType):
                 key, item_value = item
             except (TypeError, ValueError, IndexError):
                 raise ValueError(f"'{value}' is not a mapping")
-            out[key_type.convert_value(key)] = value_type.convert_value(item_value)
+            out[key_type._convert_value(key)] = value_type._convert_value(item_value)
         return out
 
-    cpdef object convert_value(self, object orig_value):
+    cpdef object convert_value(self, object orig_value, check_value=True):
         cdef int key_fitness
         cdef int value_fitness
         cdef AvroType key_type = self.key_type

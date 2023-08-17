@@ -13,7 +13,10 @@ cdef class BoolType(AvroType):
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type'})
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cpdef dict _get_schema_extra(self, set created):
+        return {}
+
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef bint bool_val = self._convert_value(value)
         buffer.write_u8(bool_val)
 
@@ -56,11 +59,14 @@ cdef class IntType(AvroType):
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type'})
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cpdef dict _get_schema_extra(self, set created):
+        return {}
+
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         value = self._convert_value(value)
         zigzag_encode_int(buffer, value)
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, Reader buffer):
         return zigzag_decode_int(buffer)
 
     cdef int get_value_fitness(self, value) except -1:
@@ -117,11 +123,14 @@ cdef class LongType(AvroType):
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type'})
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cpdef dict _get_schema_extra(self, set created):
+        return {}
+
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         value = self._convert_value(value)
         zigzag_encode_long(buffer, value)
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, Reader buffer):
         return zigzag_decode_long(buffer)
 
     cdef int get_value_fitness(self, value) except -1:
@@ -178,12 +187,15 @@ cdef class FloatType(AvroType):
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type'})
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cpdef dict _get_schema_extra(self, set created):
+        return {}
+
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef float float_val = self._convert_value(value)
         cdef uint8_t *int_val = <uint8_t*>&float_val
         buffer.write_n(int_val[:4])
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, Reader buffer):
         cdef const uint8_t[:] val = buffer.read_n(4)
         return (<float*>(&val[0]))[0]
 
@@ -267,12 +279,15 @@ cdef class DoubleType(AvroType):
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type'})
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cpdef dict _get_schema_extra(self, set created):
+        return {}
+
+    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef double float_val = self._convert_value(value)
         cdef uint8_t *int_val = <uint8_t*>&float_val
         buffer.write_n(int_val[:8])
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, Reader buffer):
         cdef const uint8_t[:] val = buffer.read_n(8)
         return (<double*>(&val[0]))[0]
 

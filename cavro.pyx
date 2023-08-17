@@ -5,6 +5,7 @@ from libc.stdint cimport *
 from libc.string cimport memcmp
 import dataclasses
 import re
+import decimal
 from cpython cimport array
 from cython cimport bint
 
@@ -12,6 +13,8 @@ from libc.string cimport memcpy
 
 ctypedef bint bool
 
+# TODO: automate this!
+__version__ = "0.2.0"
 
 __tests = {}
 def _tests(fn):
@@ -55,6 +58,8 @@ include "src/union.pxi"
 
 include "src/type.pxi"
 include "src/schema.pxi"
+
+include "src/logical.pxi"
 
 include "src/codec.pxi"
 include "src/container.pxi"

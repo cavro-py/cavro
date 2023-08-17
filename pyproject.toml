@@ -1,7 +1,7 @@
 [project]
 name = "cavro"
 description = "avro codec implemented with Cython"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
     { name = "Steve Stagg", email = "ste@sta.gg" }
 ]
@@ -19,4 +19,4 @@ dev = [
 ]
 
 [build-system]
-requires = ["cython", "setuptools"]
+requires = ["cython", "setuptools", "wheel"]
