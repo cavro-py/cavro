@@ -70,10 +70,12 @@ cdef class AvroType:
         cdef str logical_type_name = source.get('logicalType')
         if logical_type_name is None:
             return
-        logical_type_cls = schema.logical_types.get(logical_type_name)
-        if logical_type_cls is None:
-            return
-        self.logical_type = logical_type_cls.for_underlying(self)
+        logical_type_classes = schema.logical_types.get(logical_type_name)
+        for cls in logical_type_classes:
+            inst = cls.for_type(self)
+            if inst is not None:
+                self.logical_type = inst
+                return
 
 
     cpdef str get_type_name(self):

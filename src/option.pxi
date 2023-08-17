@@ -1,7 +1,8 @@
 
 LOGICAL_TYPES = (
     DecimalType,
-    UUIDType,
+    UUIDStringType,
+    UUIDFixedType,
 )
 
 @dataclasses.dataclass

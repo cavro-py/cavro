@@ -4,16 +4,11 @@ cdef class LogicalType:
     logical_name = NotImplemented
     underlying_types = NotImplemented
 
-    cdef readonly AvroType underlying
-
-    def __init__(self, underlying: AvroType):
-        self.underlying = underlying
-
     @classmethod
-    def for_underlying(cls, underlying: AvroType):
+    def for_type(cls, underlying: AvroType):
         for underlying_type in cls.underlying_types:
             if isinstance(underlying, underlying_type):
-                inst = cls._for_underlying(underlying)
+                inst = cls._for_type(underlying)
                 if inst is not None:
                     return inst
 
@@ -42,7 +37,7 @@ cdef class DecimalType(LogicalType):
         self.context = decimal.Context(prec=self.precision, clamp=1)
 
     @classmethod
-    def _for_underlying(cls, underlying: AvroType):
+    def _for_type(cls, underlying: AvroType):
         meta = underlying.metadata
         if 'precision' not in meta:
             return None
@@ -78,6 +73,37 @@ cdef class DecimalType(LogicalType):
         
 
 
-cdef class UUIDType(LogicalType):
+cdef class UUIDStringType(LogicalType):
     logical_name = 'uuid'
     underlying_types = (StringType, )
+
+    @classmethod
+    def _for_type(cls, underlying: AvroType):
+        return cls()
+
+    cdef encode_value(self, value):
+        if not isinstance(value, uuid.UUID):
+            value = uuid.UUID(value)
+        return str(value)
+
+    cdef decode_value(self, value):
+        return uuid.UUID(value)
+
+
+cdef class UUIDFixedType(LogicalType):
+    logical_name = 'uuid'
+    underlying_types = (FixedType, )
+
+    @classmethod
+    def _for_type(cls, underlying: AvroType):
+        if underlying.size != 16:
+            return None
+        return cls()
+
+    cdef encode_value(self, value):
+        if not isinstance(value, uuid.UUID):
+            value = uuid.UUID(value)
+        return value.bytes
+
+    cdef decode_value(self, value):
+        return uuid.UUID(bytes=value)

@@ -124,8 +124,8 @@ cdef class FixedType(NamedType):
     cdef readonly Py_ssize_t size
 
     def __init__(self, schema, source, namespace):
-        super().__init__(schema, source, namespace)
         self.size = source['size']
+        super().__init__(schema, source, namespace)
 
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type', 'name', 'namespace', 'aliases', 'size'})

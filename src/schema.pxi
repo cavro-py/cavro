@@ -29,9 +29,8 @@ cdef class Schema:
         self.logical_types = logical_by_name
         for logical_type in options.logical_types:
             type_name = logical_type.logical_name
-            if type_name in logical_by_name:
-                raise ValueError(f"Logical type '{type_name}' already defined")
-            logical_by_name[type_name] = logical_type
+            dest = logical_by_name.setdefault(type_name, [])
+            dest.append(logical_type)
 
         self.type = AvroType.for_schema(self)
 

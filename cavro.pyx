@@ -8,6 +8,7 @@ import re
 import decimal
 from cpython cimport array
 from cython cimport bint
+import uuid
 
 from libc.string cimport memcpy
 
