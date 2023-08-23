@@ -4,6 +4,7 @@ import pytest
 import cavro
 import avro.io
 import avro.schema
+import avro.timezones
 
 
 @pytest.mark.parametrize('schema, value', [
