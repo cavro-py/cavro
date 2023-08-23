@@ -1,7 +1,7 @@
 cython
 numpy
 
-avro-python3
+avro
 pytest
 
 tqdm
