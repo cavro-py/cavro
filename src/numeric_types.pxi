@@ -23,7 +23,7 @@ cdef class BoolType(AvroType):
     cdef object binary_buffer_decode(self, Reader buffer):
         return py_bool(buffer.read_u8())
 
-    cdef int get_value_fitness(self, value) except -1:
+    cdef int _get_value_fitness(self, value) except -1:
         if isinstance(value, (py_bool, bool_)):
             return FIT_EXACT
         if self.options.coerce_values_to_boolean:
@@ -39,7 +39,7 @@ cdef class BoolType(AvroType):
             return value
         if self.options.coerce_values_to_boolean:
             return py_bool(value)
-        raise ValueError(f"Invalid value for boolean: {value}")
+        raise InvalidValue(value, self)
 
     cdef json_format(self, value):
         return self._convert_value(value)
@@ -69,7 +69,7 @@ cdef class IntType(AvroType):
     cdef _binary_buffer_decode(self, Reader buffer):
         return zigzag_decode_int(buffer)
 
-    cdef int get_value_fitness(self, value) except -1:
+    cdef int _get_value_fitness(self, value) except -1:
         max_fit = FIT_EXACT
         if not isinstance(value, (int, integer)):
             if not self.options.coerce_values_to_int:
@@ -91,7 +91,7 @@ cdef class IntType(AvroType):
             if self.options.coerce_values_to_int or isinstance(value, integer):
                 value = int(value)
             else:
-                raise ValueError(f"Invalid value for int: {value}")
+                raise InvalidValue(value, self)
         if value > INT32_MAX:
             if self.options.clamp_int_overflow:
                 return INT32_MAX 
@@ -107,7 +107,7 @@ cdef class IntType(AvroType):
 
     cdef json_decode(self, value):
         if isinstance(value, (float, py_bool, bool_)) or not isinstance(value, int):
-            raise ValueError(f"Invalid value for int: {value}")
+            raise InvalidValue(value, self)
         if value < INT32_MIN or value > INT32_MAX:
             raise OverflowError(f"Value {value} out of range for int")
         return value
@@ -133,7 +133,7 @@ cdef class LongType(AvroType):
     cdef _binary_buffer_decode(self, Reader buffer):
         return zigzag_decode_long(buffer)
 
-    cdef int get_value_fitness(self, value) except -1:
+    cdef int _get_value_fitness(self, value) except -1:
         max_fit = FIT_EXACT
         if not isinstance(value, (int, integer)):
             if not self.options.coerce_values_to_int:
@@ -155,7 +155,7 @@ cdef class LongType(AvroType):
             if self.options.coerce_values_to_int or isinstance(value, integer):
                 value = int(value)
             else:
-                raise ValueError(f"Invalid value for long: {value}")
+                raise InvalidValue(value, self)
         if value > INT64_MAX:
             if self.options.clamp_int_overflow:
                 return INT64_MAX 
@@ -171,13 +171,17 @@ cdef class LongType(AvroType):
 
     cdef json_decode(self, value):
         if isinstance(value, (float, py_bool, bool_)) or not isinstance(value, int):
-            raise ValueError(f"Invalid value for long: {value}")
+            raise InvalidValue(value, self)
         if value < INT64_MIN or value > INT64_MAX:
             raise OverflowError(f"Value {value} out of range for int")
         return value
 
     cdef CanonicalForm canonical_form(self, set created):
         return CanonicalForm('"long"')
+
+    cdef AvroType _for_writer(self, AvroType writer):
+        if isinstance(writer, IntType):
+            return writer # Int is a subset of Long
 
 
 @cython.final
@@ -199,7 +203,7 @@ cdef class FloatType(AvroType):
         cdef const uint8_t[:] val = buffer.read_n(4)
         return (<float*>(&val[0]))[0]
 
-    cdef int get_value_fitness(self, value) except -1:
+    cdef int _get_value_fitness(self, value) except -1:
         max_fit = FIT_EXACT
         if not isinstance(value, float):
             max_fit = FIT_OK
@@ -238,7 +242,7 @@ cdef class FloatType(AvroType):
                         else:
                             raise
                 else:
-                    raise ValueError(f"Invalid value for float: '{value}'")
+                    raise InvalidValue(value, self)
         
         if isnan(value):
             if self.options.clamp_float_overflow:
@@ -263,13 +267,19 @@ cdef class FloatType(AvroType):
 
     cdef json_decode(self, value):
         if not isinstance(value, float):
-            raise ValueError(f"Invalid value for float: {value}")
+            raise InvalidValue(value, self)
         if value < -FLT_MAX or value > FLT_MAX:
             raise OverflowError(f"Value {value} out of range for float")
         return value
 
     cdef CanonicalForm canonical_form(self, set created):
         return CanonicalForm('"float"')
+
+    cdef AvroType _for_writer(self, AvroType writer):
+        if isinstance(writer, (IntType, LongType)):
+            promoted = writer.clone_base()
+            promoted.value_adapters = promoted.value_adapters + (PromoteToFloat(),)
+            return promoted
 
 
 @cython.final
@@ -291,7 +301,7 @@ cdef class DoubleType(AvroType):
         cdef const uint8_t[:] val = buffer.read_n(8)
         return (<double*>(&val[0]))[0]
 
-    cdef int get_value_fitness(self, value) except -1:
+    cdef int _get_value_fitness(self, value) except -1:
         max_fit = FIT_EXACT
         if not isinstance(value, float):
             max_fit = FIT_OK
@@ -325,7 +335,7 @@ cdef class DoubleType(AvroType):
                         else:
                             raise
                 else:
-                    raise ValueError(f"Invalid value for float: '{value}'")
+                    raise InvalidValue(value, self)
         if isnan(value):
             if self.options.clamp_float_overflow:
                 return 0.0
@@ -340,9 +350,17 @@ cdef class DoubleType(AvroType):
 
     cdef json_decode(self, value):
         if not isinstance(value, float):
-            raise ValueError(f"Invalid value for float: {value}")
+            raise InvalidValue(value, self)
         return value
 
     cdef CanonicalForm canonical_form(self, set created):
         return CanonicalForm('"double"')
 
+    cdef AvroType _for_writer(self, AvroType writer):
+        cdef AvroType promoted
+        if isinstance(writer, FloatType):
+            return writer
+        if isinstance(writer, (IntType, LongType)):
+            promoted = writer.clone_base()
+            promoted.value_adapters = promoted.value_adapters + (PromoteToFloat(),)
+            return promoted

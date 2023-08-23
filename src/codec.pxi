@@ -17,6 +17,7 @@ if HAVE_ZLIB: # Needed for crc32
 
 
 cdef class Codec:
+    name = NotImplemented
 
     cdef const uint8_t[:] read_block(self, Reader reader, size_t length):
         raise NotImplementedError(
@@ -29,6 +30,7 @@ cdef class Codec:
 
 @cython.final
 cdef class SnappyCodec(Codec):
+    name = 'snappy'
 
     cdef const uint8_t[:] read_block(self, Reader reader, size_t length):
         cdef const uint8_t[:] compressed = reader.read_n(length - 4)
@@ -47,6 +49,7 @@ cdef class SnappyCodec(Codec):
 
 
 cdef class NullCodec(Codec):
+    name = 'null'
 
     cdef const uint8_t[:] read_block(self, Reader reader, size_t length):
         return reader.read_n(length)
@@ -57,6 +60,7 @@ cdef class NullCodec(Codec):
 
 
 cdef class DeflateCodec(Codec):
+    name = 'deflate'
 
     cdef const uint8_t[:] read_block(self, Reader reader, size_t length):
         return zlib.decompress(reader.read_n(length))

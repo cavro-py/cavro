@@ -1,20 +1,47 @@
 
+
+NAME_RE_STRICT = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
+NAME_RE_UNICODE = None
+
+cdef get_unicode_name_re():
+    global NAME_RE_UNICODE
+    if NAME_RE_UNICODE is None:
+        import unicodedata, sys
+        letters = set()
+        for c in range(sys.maxunicode + 1):
+            if unicodedata.category(chr(c)) in ('Ll', 'Lu'):
+                letters.add(chr(c))
+        letter_pattern = re.escape(''.join(letters))
+        NAME_RE_UNICODE = re.compile(fr'[{letter_pattern}_]\w*')
+    return NAME_RE_UNICODE
+
+
 LOGICAL_TYPES = (
     DecimalType,
     UUIDStringType,
     UUIDFixedType,
+    Date,
+    TimeMillis, 
+    TimeMicros,
+    TimestampMillis,
+    TimestampMicros,
 )
 
 @dataclasses.dataclass
 cdef class Options:
 
     fingerprint_returns_digest: bint = False
+    canonical_form_repeat_fixed: bint = False
 
     record_can_encode_dict: bint = True
+    record_decodes_to_dict: bint = False
     allow_primitive_name_collision: bint = False
+    allow_primitive_names_in_namespaces: bint = False
 
     enum_symbols_must_be_unique: bint = True
     enforce_enum_symbol_name_rules: bint = True
+    enforce_type_name_rules: bint = True
+    enforce_namespace_name_rules: bint = True
     ascii_name_rules: bint = True
 
     allow_false_values_for_null: bint = False
@@ -36,10 +63,27 @@ cdef class Options:
     clamp_int_overflow: bint = False
     clamp_float_overflow: bint = False
 
+    bytes_default_value_utf8: bint = False
+
+    decimal_check_exp_overflow: bint = False
+
     types_str_to_schema: bint = False
     logical_types: tuple[LogicalType] = LOGICAL_TYPES
 
-    
+    adapt_record_types: bint = False
+    return_uuid_object: bint = True
+
+    allow_error_type: bint = False
+    allow_leading_dot_in_names: bint = True
+
+    def replace(self, **changes):
+        return dataclasses.replace(self, **changes)
+
+    @property
+    def name_pattern(self):
+        if self.ascii_name_rules:
+            return NAME_RE_STRICT
+        return get_unicode_name_re()
 
 
 DEFAULT_OPTIONS = Options()
@@ -62,4 +106,9 @@ PERMISSIVE_OPTIONS = Options(
     clamp_int_overflow=True,
     clamp_float_overflow=True,
     coerce_values_to_float=True,
+    adapt_record_types=True,
+    enforce_type_name_rules=False,
+    allow_error_type=True,
+    allow_leading_dot_in_names=True,
+    enforce_namespace_name_rules=False,
 )

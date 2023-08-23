@@ -21,7 +21,7 @@ cdef class UnionType(AvroType):
         for member in self.union_types:
             if isinstance(member, NamedType):
                 self.by_name_map[member.name] = member
-                self.by_name_map[member.get_type_name()] = member
+                self.by_name_map[member.type] = member
             else:
                 self.by_name_map[member.type_name] = member
 
@@ -34,11 +34,16 @@ cdef class UnionType(AvroType):
                         raise ValueError(f"Unions may not have more than one member of type '{ member_type.type_name }'")
                     seen_types.add(member_type)
 
-    cdef _setup_logical(self, schema, source):
+    cdef _make_logical(self, schema, source):
         return
 
     cdef dict _extract_metadata(self, source):
         return dict()
+
+    def walk_types(self, visited):
+        yield from super().walk_types(visited)
+        for t in self.union_types:
+            yield from t.walk_types(visited)
 
     cpdef get_schema(self, created=None):
         if created is None:
@@ -60,7 +65,7 @@ cdef class UnionType(AvroType):
                 cur_fit = type_fitness
             i += 1
         if cur_fit == FIT_NONE or best_index < 0:
-            raise ValueError(f"Value '{value}' not valid for UnionType")
+            raise InvalidValue(value, self)
         return best_index
 
     cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
@@ -77,7 +82,7 @@ cdef class UnionType(AvroType):
         cdef AvroType item = self.union_types[index]
         return item.binary_buffer_decode(buffer)
 
-    cdef int get_value_fitness(self, value) except -1:
+    cdef int _get_value_fitness(self, value) except -1:
         cdef AvroType union_type
         cdef int level = FIT_NONE
         for union_type in self.union_types:
@@ -91,7 +96,7 @@ cdef class UnionType(AvroType):
         cdef AvroType union_type = self.union_types[type_index]
         if isinstance(union_type, NullType):
             return None
-        return {union_type.get_type_name(): union_type.json_format(value)}
+        return {union_type.type: union_type.json_format(value)}
 
     cdef json_decode(self, value):
         cdef dict value_dict = value

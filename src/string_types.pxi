@@ -20,7 +20,7 @@ cdef class BytesType(AvroType):
         cdef uint64_t length = zigzag_decode_long(buffer)
         return buffer.read_bytes(length)
 
-    cdef int get_value_fitness(self, value) except -1:
+    cdef int _get_value_fitness(self, value) except -1:
         if isinstance(value, bytes):  # If bytes, we're good
             return FIT_EXACT
         # If there's a bytes_codec, then if we get get value to be a str, then we have a way through
@@ -55,16 +55,20 @@ cdef class BytesType(AvroType):
             return value
         codec = self.options.bytes_codec
         if not codec:
-            raise ValueError(f"Invalid value for bytes: '{value}'")
+            raise InvalidValue(value, self)
         if not isinstance(value, str):
             if self.options.coerce_values_to_str:
                 value = str(value)
-            raise ValueError(f"Invalid value for bytes: '{value}'")
+            raise InvalidValue(value, self)
         # We have a str, and codec
         return value.encode(codec)
 
     cdef CanonicalForm canonical_form(self, set created):
         return CanonicalForm('"bytes"')
+
+    cdef AvroType _for_writer(self, AvroType writer):
+        if isinstance(writer, StringType):
+            return self # Decoding is identical for bytes / str
 
 
 @cython.final
@@ -88,7 +92,7 @@ cdef class StringType(AvroType):
         cdef uint64_t length = zigzag_decode_long(buffer)
         return buffer.read_bytes(length).decode('utf-8')
 
-    cdef int get_value_fitness(self, value) except -1:
+    cdef int _get_value_fitness(self, value) except -1:
         if isinstance(value, str):
             return FIT_EXACT
         if self.options.coerce_values_to_str:
@@ -108,13 +112,17 @@ cdef class StringType(AvroType):
         if isinstance(value, str):
             return value
         if not self.options.coerce_values_to_str:
-            raise TypeError(f"Invalid value for string: '{value}'")
+            raise InvalidValue(value, self)
         if isinstance(value, bytes):
             return value.decode()
         return str(value)
 
     cdef CanonicalForm canonical_form(self, set created):
         return CanonicalForm('"string"')
+
+    cdef AvroType _for_writer(self, AvroType writer):
+        if isinstance(writer, BytesType):
+            return self
 
 
 @cython.final
@@ -125,22 +133,27 @@ cdef class FixedType(NamedType):
 
     def __init__(self, schema, source, namespace):
         self.size = source['size']
+        if self.size < 0:
+            raise ValueError(f'Invalid negative size for fixed: {self.size}')
         super().__init__(schema, source, namespace)
 
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type', 'name', 'namespace', 'aliases', 'size'})
 
+    cpdef dict _get_schema_extra(self, set created):
+        return dict(NamedType._get_schema_extra(self, created), size=self.size)
+
     cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
         value = self._convert_value(value)
         cdef Py_ssize_t length = len(value)
         if length != self.size:
-            raise ValueError(f"Invalid length for fixed field: {length} != {self.size}")
+            raise ValueError(f"Invalid length for fixed field: {length} != {self.size} (value: {value})")
         buffer.write_n(value)
 
     cdef _binary_buffer_decode(self, Reader buffer):
         return bytes(buffer.read_n(self.size))
 
-    cdef int get_value_fitness(self, value) except -1:
+    cdef int _get_value_fitness(self, value) except -1:
         MAX_FIT = FIT_EXACT
         if not isinstance(value, bytes):
             MAX_FIT = FIT_OK
@@ -181,7 +194,7 @@ cdef class FixedType(NamedType):
         cdef str sval = value
         cdef bytes encoded = sval.encode('latin1')
         if len(encoded) != self.size:
-            raise ValueError(f"Invalid length for fixed field: {len(encoded)} != {self.size}")
+            raise ValueError(f"Invalid length for fixed field: {len(encoded)} != {self.size} (value: {value})")
         return encoded
 
     cpdef object _convert_value(self, object value):
@@ -205,14 +218,14 @@ cdef class FixedType(NamedType):
             return value + b'\x00' * (self.size - length)
         if self.options.truncate_fixed:
             return value[:self.size]
-        raise ValueError(f"Invalid length for fixed field: {length} != {self.size}")
+        raise ValueError(f"Invalid length for fixed field: {length} != {self.size} (value: {value})")
 
     cdef CanonicalForm canonical_form(self, set created):
-        if self in created:
-            return self.get_type_name()
+        if self in created and not self.options.canonical_form_repeat_fixed:
+            return CanonicalForm(f'"{self.type}"')
         created.add(self)
         return dict_to_canonical({
             'type': 'fixed',
-            'name': self.get_type_name(),
+            'name': self.type,
             'size': self.size
         })

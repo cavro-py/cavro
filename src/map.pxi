@@ -7,11 +7,15 @@ cdef class MapType(AvroType):
 
     def __init__(self, schema, source, namespace):
         super().__init__(schema, source, namespace)
-        self.key_type = StringType(schema, {'type': 'string'}, namespace)
+        self.key_type = StringType(schema, {'type': 'string'}, namespace) # This way we pick up options
         self.value_type = AvroType.for_source(schema, source['values'], namespace)
 
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type', 'values'})
+
+    def walk_types(self, visited):
+        yield from super().walk_types(visited)
+        yield from self.value_type.walk_types(visited)
 
     cpdef dict _get_schema_extra(self, set created):
         return {'values': self.value_type.get_schema(created)}
@@ -23,7 +27,11 @@ cdef class MapType(AvroType):
         if value:
             for key, item_value in value:
                 self.key_type.binary_buffer_encode(buffer, key)
-                self.value_type.binary_buffer_encode(buffer, item_value)
+                try:
+                    self.value_type.binary_buffer_encode(buffer, item_value)
+                except InvalidValue as e:
+                    e.schema_path = (key, ) + e.schema_path
+                    raise
             zigzag_encode_long(buffer, 0)
 
     cdef _binary_buffer_decode(self, Reader buffer):
@@ -57,7 +65,7 @@ cdef class MapType(AvroType):
             out[key] = self.value_type.json_decode(val)
         return out
 
-    cdef int get_value_fitness(self, value) except -1:
+    cdef int _get_value_fitness(self, value) except -1:
         cdef int level = FIT_OK
         if isinstance(value, dict):
             level = FIT_EXACT
@@ -131,3 +139,15 @@ cdef class MapType(AvroType):
             'type': 'map',
             'values': self.value_type.canonical_form(created)
         })
+
+    cdef AvroType _for_writer(self, AvroType writer):
+        cdef MapType cloned
+        cdef MapType writer_map
+        if isinstance(writer, MapType):
+            writer_map = writer
+            promoted_value = self.value_type._for_writer(writer.value_type)
+            if promoted_value is not None:
+                cloned = self.clone_base()
+                cloned.key_type = writer_map.key_type
+                cloned.value_type = promoted_value
+                return cloned

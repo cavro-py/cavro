@@ -16,24 +16,26 @@ cdef class Schema:
 
     cdef readonly dict logical_types
 
-    def __init__(self, source, options=DEFAULT_OPTIONS, **extra_options):
+    def __init__(self, source, Options options=DEFAULT_OPTIONS, named_types=None, **extra_options):
         if isinstance(source, (str, bytes)):
             source = json.loads(source)
-        if extra_options:
-            options = dataclasses.replace(options, **extra_options)
-        self.options = options
-        self.named_types = {}
         self.source = source
+        if extra_options:
+            options = options.replace(**extra_options)
+        self.options = options
+        self.named_types = named_types or {}
+        self.logical_types = self._make_logical_types(options)
+        self.type = AvroType.for_schema(self)
 
+    def _make_logical_types(self, options):
         logical_by_name = {}
         self.logical_types = logical_by_name
         for logical_type in options.logical_types:
             type_name = logical_type.logical_name
             dest = logical_by_name.setdefault(type_name, [])
             dest.append(logical_type)
-
-        self.type = AvroType.for_schema(self)
-
+        return logical_by_name
+    
     cdef void register_type(self, str namespace, str name, AvroType avro_type):
         self.named_types[resolve_namespaced_name(namespace, name)] = avro_type
 
@@ -41,11 +43,22 @@ cdef class Schema:
         def __get__(self):
             return self.type.canonical_form(set())
 
+    property schema:
+        def __get__(self):
+            return self.type.get_schema(set())
+
+    property schema_str:
+        def __get__(self):
+            return json.dumps(self.schema, indent=2)
+
     def fingerprint(self, method='rabin', **kwargs):
         if method == 'rabin':
             hasher = Rabin()
         else:
-            hasher = hashlib.new(method, **kwargs)
+            try:
+                hasher = hashlib.new(method, **kwargs)
+            except ValueError:
+                raise InvalidHasher(f'Unknown hash method: {method!r}')
         hasher.update(self.canonical_form.encode('utf-8'))
         if self.options.fingerprint_returns_digest:
             return hasher.digest()
@@ -83,3 +96,22 @@ cdef class Schema:
         if deserialize:
             value = json.loads(value, **kwargs)
         return self.type.json_decode(value)
+
+    cpdef Schema reader_for_writer(self, Schema writer_schema):
+        new_type = self.type.for_writer(writer_schema.type)
+        return ResolvedSchema(new_type, self.options)
+
+
+cdef class ResolvedSchema(Schema):
+
+    def __init__(self, AvroType resolved_type, Options options=DEFAULT_OPTIONS):
+        named_types = {}
+        for sub_type in resolved_type.walk_types(set()):
+            if isinstance(sub_type, NamedType):
+                named_types[sub_type.type] = sub_type
+            
+        self.named_types = named_types
+        self.source = None
+        self.options = options
+        self.type = resolved_type
+        self.logical_types = self._make_logical_types(options)

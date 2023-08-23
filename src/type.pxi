@@ -35,8 +35,8 @@ cdef class AvroType:
     type_name = NotImplemented
 
     cdef readonly Options options
-    cdef readonly dict metadata
-    cdef readonly LogicalType logical_type
+    cdef readonly object metadata
+    cdef readonly tuple[ValueAdapter] value_adapters
 
     @classmethod
     def for_source(cls, schema, source, namespace=None):
@@ -48,25 +48,40 @@ cdef class AvroType:
             type_name = source['type']
         except (TypeError, KeyError) as e:
             raise ValueError(f"Could not find key 'type' in schema definition: {repr(source)}")
-        if type_name in TYPES_BY_NAME:
-            return TYPES_BY_NAME[type_name](schema, source, namespace)
         namespaced = resolve_namespaced_name(namespace, type_name)
         if namespaced in schema.named_types:
             return schema.named_types[namespaced]
         if type_name in schema.named_types:
             return schema.named_types[type_name]
+        if type_name in TYPES_BY_NAME:
+            return TYPES_BY_NAME[type_name](schema, source, namespace)
+        if type_name == 'error' and schema.options.allow_error_type:
+            return RecordType(schema, source, namespace)
         raise ValueError(f"Unknown type: {type_name}")
 
     @classmethod
     def for_schema(cls, schema):
         return AvroType.for_source(schema, schema.source)
 
-    def __init__(self, schema, source, namespace):
+    def __init__(self, schema, source, namespace, value_adapters=tuple()):
+        cdef ValueAdapter logical
         self.options = schema.options
-        self.metadata = self._extract_metadata(source)
-        self._setup_logical(schema, source)
+        self.metadata = PyDictProxy_New(self._extract_metadata(source))
+        
+        logical = self._make_logical(schema, source)
+        if logical is not None:
+            self.value_adapters = value_adapters + (logical,)
+        else:
+            self.value_adapters = value_adapters
 
-    cdef _setup_logical(self, schema, source):
+    cdef AvroType clone_base(self):
+        cdef AvroType clone = self.__class__.__new__(self.__class__)
+        clone.options = self.options
+        clone.metadata = self.metadata
+        clone.value_adapters = self.value_adapters
+        return clone
+
+    cdef _make_logical(self, schema, source):
         cdef str logical_type_name = source.get('logicalType')
         if logical_type_name is None:
             return
@@ -74,12 +89,11 @@ cdef class AvroType:
         for cls in logical_type_classes:
             inst = cls.for_type(self)
             if inst is not None:
-                self.logical_type = inst
-                return
+                return inst
 
-
-    cpdef str get_type_name(self):
-        return self.type_name
+    property type:
+        def __get__(self):
+            return self.type_name
 
     cdef dict _extract_metadata(self, source):
         raise NotImplementedError(
@@ -95,8 +109,9 @@ cdef class AvroType:
         return self._convert_value(value)
 
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
-        if self.logical_type is not None:
-            value = self.logical_type.encode_value(value)
+        cdef ValueAdapter adapter
+        for adapter in self.value_adapters:
+            value = adapter.encode_value(value)
         return self._binary_buffer_encode(buffer, value)
 
     cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
@@ -104,9 +119,10 @@ cdef class AvroType:
             f"{type(self).__name__} does not implement _binary_buffer_encode")
 
     cdef binary_buffer_decode(self, Reader buffer):
+        cdef ValueAdapter adapter
         value = self._binary_buffer_decode(buffer)
-        if self.logical_type is not None:
-            return self.logical_type.decode_value(value)
+        for adapter in reversed(self.value_adapters):
+            value = adapter.decode_value(value)
         return value
 
     cdef _binary_buffer_decode(self, Reader buffer):
@@ -114,8 +130,17 @@ cdef class AvroType:
             f"{type(self).__name__} does not implement binary_buffer_decode")
 
     cdef int get_value_fitness(self, value) except -1:
+        cdef ValueAdapter adapter
+        for adapter in self.value_adapters:
+            try:
+                value = adapter.encode_value(value)
+            except (ValueError, TypeError, InvalidValue):
+                return FIT_NONE
+        return self._get_value_fitness(value)
+
+    cdef int _get_value_fitness(self, value) except -1:
         raise NotImplementedError(
-            f"{type(self).__name__} does not implement get_value_fitness")
+            f"{type(self).__name__} does not implement _get_value_fitness")
 
     cdef int assert_value(self, object value) except -1:
         cdef int fitness = self.get_value_fitness(value)
@@ -138,11 +163,28 @@ cdef class AvroType:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement _get_schema_extra")
 
+    cdef AvroType for_writer(self, AvroType writer):
+        if self.canonical_form(set()) == writer.canonical_form(set()):
+            return writer
+        promoted = self._for_writer(writer)
+        if promoted is None:
+            raise CannotPromoteError(self, writer)
+        return promoted
+
+    cdef AvroType _for_writer(self, AvroType writer):
+        pass
+
+    def walk_types(self, visited):
+        if self in visited:
+            return
+        visited.add(self)
+        yield self
+
     cpdef get_schema(self, created=None):
         if created is None:
             created = set()
         if isinstance(self, NamedType):
-            type_name = self.get_type_name()
+            type_name = self.type
             if type_name in created:
                 return type_name
             else:
@@ -164,6 +206,9 @@ cdef class AvroType:
             return super().__str__()
 
 
+
+
+
 cdef class NamedType(AvroType):
 
     cdef readonly str name
@@ -171,31 +216,77 @@ cdef class NamedType(AvroType):
     cdef readonly str effective_namespace
     cdef readonly frozenset aliases
 
-    def __init__(self, schema, source, namespace):
+    def __init__(self, schema, source, parse_namespace):
         cdef Schema schema_t = schema
-        super().__init__(schema, source, namespace)
+        cdef str effective_namespace = None
+        super().__init__(schema, source, parse_namespace)
         cdef str name = source['name']
-        if not schema.options.allow_primitive_name_collision:
-            if name in PRIMITIVE_TYPES:
-                raise ValueError(f"'{name}' is not allowed as a name")
+        if '.' in name:
+            effective_namespace, name = name.rsplit('.', 1)
+
+        if not schema.options.allow_leading_dot_in_names:
+            if effective_namespace == '':
+                raise InvalidName(f"The null namespace cannot be specified in name fields")
+
+        name_pattern = schema.options.name_pattern
+        if schema.options.enforce_type_name_rules:    
+            if not name_pattern.fullmatch(name):
+                raise InvalidName(f"Type name '{name}' is not valid")
+        
         self.name = name
         self.namespace = source.get('namespace')
-        self.effective_namespace = namespace if self.namespace is None else self.namespace
+        if effective_namespace is None:
+            effective_namespace = self.namespace
+            if effective_namespace is None:
+                effective_namespace = parse_namespace
+
+        self.effective_namespace = effective_namespace or None
+
+        if self.effective_namespace is not None and schema.options.enforce_namespace_name_rules:
+            namespace_parts = self.effective_namespace.split('.')
+            for part in namespace_parts:
+                if not part or not name_pattern.fullmatch(part):
+                    raise InvalidName(f"Namespace '{self.effective_namespace}' is not valid")
+
+        if not schema.options.allow_primitive_name_collision:
+            if name in PRIMITIVE_TYPES:
+                if schema.options.allow_primitive_names_in_namespaces and self.effective_namespace is not None:
+                    pass
+                else:
+                    raise ValueError(f"'{name}' is not allowed as a name")
+
         self.aliases = frozenset(source.get('aliases', []))
         schema_t.register_type(self.effective_namespace, self.name, self)
 
-    cpdef str get_type_name(self):
-        return resolve_namespaced_name(self.namespace, self.name)
+    property type:
+        def __get__(self):
+            return resolve_namespaced_name(self.effective_namespace, self.name)
 
     cpdef dict _get_schema_extra(self, set created):
         schema = {
             'name': self.name,
         }
-        if self.namespace:
-            schema['namespace'] = self.namespace
+        if self.effective_namespace:
+            schema['namespace'] = self.effective_namespace
         if self.aliases:
             schema['aliases'] = list(self.aliases)
         return schema
+
+    cdef AvroType clone_base(self):
+        cdef NamedType inst = AvroType.clone_base(self)
+        inst.name = self.name
+        inst.namespace = self.namespace
+        inst.effective_namespace = self.effective_namespace
+        inst.aliases = self.aliases
+        return inst
+
+    cdef dict _extract_metadata(self, source):
+        return _strip_keys(source, {
+            'type', 
+            'name', 
+            'namespace', 
+            'aliases', 
+        })
 
 
 PRIMITIVE_TYPES = {

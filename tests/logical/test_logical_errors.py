@@ -19,7 +19,7 @@ def test_missing_field_logical():
         "type": "bytes",
         "logicalType": "decimal",
     })
-    assert schema.type.logical_type is None
+    assert schema.type.value_adapters == ()
     with pytest.raises(ValueError):
         schema.binary_encode(decimal.Decimal("1.0"))
     

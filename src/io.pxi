@@ -61,5 +61,5 @@ cdef class FileObjWriter(Writer):
     cdef int write_u8(self, uint8_t val) except -1:
         self.file_obj.write(bytes([val]))
 
-    cdef int write_n(self, uint8_t[:] data) except -1:
+    cdef int write_n(self, const uint8_t[:] data) except -1:
         self.file_obj.write(data)

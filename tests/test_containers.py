@@ -29,7 +29,6 @@ def test_container_invalid_codec():
 def test_container_reading_from_fileobj():
     here = Path(__file__).parent
     container_file = here / 'data' / 'weather.avro'
-    print(container_file.read_bytes())
     container = cavro.ContainerReader(container_file.open('rb'))
     assert list(container)[2].temp == -11
 
@@ -74,7 +73,7 @@ def test_writing_one_int_no_close(monkeypatch):
     sch = cavro.Schema('"int"')
     writer = cavro.ContainerWriter(buf, sch)
     writer.write_one(1)
-    assert buf.getvalue() == FakeUUID.HEADER
+    assert buf.getvalue() == b''
     del writer
     assert buf.getvalue() == FakeUUID.HEADER + b'\x02\x02\x02' + FakeUUID.bytes
 
@@ -106,7 +105,7 @@ def test_writing_two_blocks_of_ints(monkeypatch):
     sch = cavro.Schema('"int"')
     writer = cavro.ContainerWriter(buf, sch, max_blocksize=1)
     writer.write_one(64)
-    assert buf.getvalue() == FakeUUID.HEADER
+    assert buf.getvalue() == b''
     writer.write_one(1)
     assert buf.getvalue() == FakeUUID.HEADER + b'\x02\x04\x80\x01' + FakeUUID.bytes
     writer.close()

@@ -22,9 +22,9 @@ def test_map():
 
 def test_map_non_string_keys():
     schema = cavro.Schema({"type": "map", 'values': 'int'})
-    with pytest.raises(TypeError) as exc:
+    with pytest.raises(cavro.InvalidValue) as exc:
         schema.binary_encode({1: 2})
-    with pytest.raises(TypeError) as exc:
+    with pytest.raises(cavro.InvalidValue) as exc:
         schema.binary_encode({('x', ): 2})
 
 

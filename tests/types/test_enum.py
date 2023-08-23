@@ -31,7 +31,7 @@ def test_enum_blank_symbol():
 
 
 def test_enum_with_duplicate_symbols():
-    with pytest.raises(ValueError):
+    with pytest.raises(cavro.DuplicateName):
         cavro.Schema({
             'type': 'enum',
             'name': 'A',
@@ -61,13 +61,13 @@ def test_enum_with_invalid_symbols(bad_sym, is_uni):
             'symbols': ['one', bad_sym, 'do']
         }
 
-    with pytest.raises(ValueError): # Default is to fail
+    with pytest.raises(cavro.InvalidName): # Default is to fail
         cavro.Schema(defn)
     if is_uni:
         schema = cavro.Schema(defn, ascii_name_rules=False)
         assert schema.binary_encode(bad_sym) == b'\x02'
     else:
-        with pytest.raises(ValueError): # This one also fails extended unicode naming
+        with pytest.raises(cavro.InvalidName): # This one also fails extended unicode naming
             cavro.Schema(defn, ascii_name_rules=False)
     
     schema = cavro.Schema(defn, enforce_enum_symbol_name_rules=False)

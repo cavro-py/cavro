@@ -1,3 +1,4 @@
+import dataclasses
 import cavro
 import pytest
 
@@ -37,5 +38,61 @@ import pytest
     ]
 )
 def test_canonical_form(schema, expected):
-    schema_obj = cavro.Schema(schema, cavro.PERMISSIVE_OPTIONS)
+    schema_obj = cavro.Schema(schema, cavro.PERMISSIVE_OPTIONS.replace(canonical_form_repeat_fixed=False))
     assert schema_obj.canonical_form == expected
+
+
+def test_default_canonical_form_repeats_fixed_enum():
+    '''This appears to be a bug in avro/python, fixed types are repeated in the canonical form'''
+    schema = cavro.Schema({
+        'type': 'record',
+        'name': 'Foo',
+        'fields': [
+            {'name': 'a', 'type': {'type': 'fixed', 'size': 8, 'name': 'Xxx', 'namespace': 'com.x'}},
+            {'name': 'b', 'type': {'type': 'com.x.Xxx'}},
+            {'name': 'c', 'type': {'type': 'enum', 'symbols': ['a'], 'name': 'X'}},
+            {'name': 'd', 'type': {'type': 'X'}},
+            {'name': 'e', 'type': {'type': 'Foo'}},
+        ],
+    },
+    canonical_form_repeat_fixed=True)
+    assert schema.canonical_form == '''{
+        "name": "Foo",
+        "type": "record",
+        "fields": [
+            {
+                "name": "a",
+                "type": {
+                    "name": "com.x.Xxx",
+                    "type": "fixed",
+                    "size": 8
+                }
+            },
+            {
+                "name": "b",
+                "type": {
+                    "name": "com.x.Xxx",
+                    "type": "fixed",
+                    "size": 8
+                }
+            },
+            {
+                "name": "c",
+                "type": {
+                    "name": "X",
+                    "type": "enum",
+                    "symbols": [
+                        "a"
+                    ]
+                }
+            },
+            {
+                "name": "d",
+                "type": "X"
+            },
+            {
+                "name": "e",
+                "type": "Foo"
+            }
+        ]
+    }'''.replace(' ', '').replace('\n', '')

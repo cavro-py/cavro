@@ -14,14 +14,24 @@ cdef class ArrayType(AvroType):
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type', 'items'})
 
+    def walk_types(self, visited):
+        yield from super().walk_types(visited)
+        yield from self.item_type.walk_types(visited)
+
     cpdef dict _get_schema_extra(self, set created):
         return {'items': self.item_type.get_schema(created)}
 
     cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
+        cdef size_t idx = 0
         if len(value):
             zigzag_encode_long(buffer, len(value))
             for item in value:
-                self.item_type.binary_buffer_encode(buffer, item)
+                try:
+                    self.item_type.binary_buffer_encode(buffer, item)
+                except InvalidValue as e:
+                    e.schema_path = (idx, ) + e.schema_path
+                    raise
+                idx += 1
         zigzag_encode_long(buffer, 0)
 
     cdef _binary_buffer_decode(self, Reader buffer):
@@ -43,7 +53,7 @@ cdef class ArrayType(AvroType):
     cdef json_decode(self, value):
         return [self.item_type.json_decode(item) for item in value]
 
-    cdef int get_value_fitness(self, value) except -1:
+    cdef int _get_value_fitness(self, value) except -1:
         cdef int level = FIT_OK
         if isinstance(value, (list, tuple, numpy.ndarray)):
             level = FIT_EXACT
@@ -86,3 +96,12 @@ cdef class ArrayType(AvroType):
             'type': 'array',
             'items': self.item_type.canonical_form(created)
         })
+
+    cdef AvroType _for_writer(self, AvroType writer):
+        cdef ArrayType cloned
+        if isinstance(writer, ArrayType):
+            promoted_item = self.item_type._for_writer(writer.item_type)
+            if promoted_item is not None:
+                cloned = self.clone_base()
+                cloned.item_type = promoted_item
+                return cloned

@@ -2,9 +2,6 @@
 cdef class NullType(AvroType):
     type_name = "null"
 
-    def __init__(self, schema, source, namespace):
-        super().__init__(schema, source, namespace)
-
     cdef dict _extract_metadata(self, source):
         return _strip_keys(source, {'type'})
 
@@ -19,7 +16,7 @@ cdef class NullType(AvroType):
     cdef _binary_buffer_decode(self, Reader buffer):
         return None
 
-    cdef int get_value_fitness(self, value) except -1:
+    cdef int _get_value_fitness(self, value) except -1:
         if value is None:
             return FIT_EXACT
         if not value and self.options.allow_false_values_for_null:
