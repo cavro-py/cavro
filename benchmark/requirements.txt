@@ -1,4 +1,3 @@
 fastavro
 pygithub
-avro-python3
 pygit2

@@ -8,7 +8,6 @@ RUN apk add git
 COPY requirements.txt /root/requirements.txt
 
 RUN pip3 install --upgrade pip
-RUN pip3 install -r /root/requirements.txt
 RUN pip3 install python-snappy
 
 COPY . /root
@@ -18,7 +17,7 @@ WORKDIR /root
 RUN mkdir /root/wheels
 RUN cd /root && pip wheel . --no-deps -w /root/wheels
 
-RUN pip3 install /root/wheels/*.whl
+RUN pip3 install $(echo /root/wheels/*.whl)[test]
 RUN pip3 install -r /root/benchmark/requirements.txt
 
 ENTRYPOINT ["/bin/sh"]
