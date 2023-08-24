@@ -7,6 +7,8 @@ import avro.schema
 import avro.timezones
 
 
+IS_DODGY_AVRO_VERSION = avro.__version__.rsplit('.', 1)[0] in ('1.12', '1.11')
+
 @pytest.mark.parametrize('schema, value', [
     ('"long"', 1),
     ('"long"', -1),
@@ -43,7 +45,7 @@ import avro.timezones
     ),
 ])
 def test_encoding(schema, value):
-    cavro_schema = cavro.Schema(schema)
+    cavro_schema = cavro.Schema(schema, alternate_timestamp_millis_encoding=IS_DODGY_AVRO_VERSION)
     avro_schema = avro.schema.parse(schema)
     cavro_encoded = cavro_schema.binary_encode(value)
 
@@ -90,8 +92,9 @@ def test_sus_default_value_behaviour():
 
     # decoded should be {"H": b"\xff\xff"}:
     assert default_reader_writer.binary_decode(encoded) == {'H': b'\xff\xff'}
-    # but avro library utf-8 encodes default bytes values, so it ends up being...
 
-    assert avro_decoded == {'H': b'\xc3\xbf\xc3\xbf'}
+    if IS_DODGY_AVRO_VERSION:
+        # but avro some library versions utf-8 encode default bytes values, so it ends up being...
+        assert avro_decoded == {'H': b'\xc3\xbf\xc3\xbf'}
     assert reader_writer.binary_decode(encoded) == {'H': b'\xc3\xbf\xc3\xbf'}
 

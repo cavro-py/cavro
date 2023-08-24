@@ -267,9 +267,14 @@ cdef class TimestampMillis(LogicalType):
     logical_name = 'timestamp-millis'
     underlying_types = (LongType, )
 
+    cdef readonly bint alternate_timestamp_encoding
+
+    def __init__(self, alternate_timestamp_encoding=False):
+        self.alternate_timestamp_encoding = alternate_timestamp_encoding
+
     @classmethod
     def _for_type(cls, underlying: AvroType):
-        return cls()
+        return cls(underlying.options.alternate_timestamp_millis_encoding)
 
     @property
     def type_name(self):
@@ -278,8 +283,11 @@ cdef class TimestampMillis(LogicalType):
     cdef encode_value(self, value):
         if not isinstance(value, datetime.datetime):
             raise ValueError(f"Expected datetime.datetime, got {type(value)}")
-        delta = value - EPOCH_DT
-        return (delta.microseconds // 1_000) + (delta.seconds + delta.days * 24 * 3600) * 1_000
+        if self.alternate_timestamp_encoding:
+            delta = value - EPOCH_DT
+            return (delta.microseconds // 1_000) + (delta.seconds + delta.days * 24 * 3600) * 1_000
+        else:
+            return int(value.timestamp() * 1_000)
 
     cdef decode_value(self, value):
         return EPOCH_DT + datetime.timedelta(microseconds=value * 1_000)

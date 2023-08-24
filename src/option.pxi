@@ -76,6 +76,8 @@ cdef class Options:
     allow_error_type: bint = False
     allow_leading_dot_in_names: bint = True
 
+    alternate_timestamp_millis_encoding: bint = False
+
     def replace(self, **changes):
         return dataclasses.replace(self, **changes)
 

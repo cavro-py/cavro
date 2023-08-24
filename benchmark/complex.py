@@ -13,6 +13,7 @@ from io import BytesIO
 
 SCHEMA = open(os.path.join(os.path.dirname(__file__), 'complex_schema.json')).read()
 
+
 class ComplexSchema:
     """
     Measure the time taken to decode and re-encode 1,000 values, randomly
@@ -28,7 +29,7 @@ class ComplexSchema:
         self.values = [schema.binary_encode(value) for value in raw_values]
 
     def avro(self):
-        schema = avro.schema.Parse(SCHEMA)
+        schema = avro.schema.parse(SCHEMA)
         reader = avro.io.DatumReader(schema)
         writer = avro.io.DatumWriter(schema)
         for encoded_value in self.values:

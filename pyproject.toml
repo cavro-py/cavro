@@ -12,7 +12,7 @@ dynamic=["readme", "requires-python", "license", "classifiers"]
 
 [project.optional-dependencies]
 test = [
-    "avro",
+    "avro<1.11", # Due to bug AVRO-3842, avro library isn't suitable for testing/benchmarks
     "pytest",
     "tqdm",
     "click",

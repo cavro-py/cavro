@@ -50,7 +50,7 @@ class SimpleRecordEncodeDict:
         self.values = make_readings(100_000 * mul)
 
     def avro(self):
-        schema = avro.schema.Parse(SCHEMA)
+        schema = avro.schema.parse(SCHEMA)
         writer = avro.io.DatumWriter(schema)
         for value in self.values:
             output_buf = BytesIO()
@@ -107,7 +107,7 @@ class SimpleRecordDecode:
         self.values = [schema.binary_encode(r) for r in raw]
 
     def avro(self):
-        schema = avro.schema.Parse(SCHEMA)
+        schema = avro.schema.parse(SCHEMA)
         reader = avro.io.DatumReader(schema)
         for value in self.values:
             input_buf = BytesIO(value)

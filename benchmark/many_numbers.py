@@ -36,7 +36,7 @@ class ManyNumbersDecode(ManyNumbersBase):
         self.value = schema.binary_encode(self.raw_values)
 
     def avro(self):
-        schema = avro.schema.Parse(SCHEMA)
+        schema = avro.schema.parse(SCHEMA)
         reader = avro.io.DatumReader(schema)
         value_buf = BytesIO(self.value)
         decoder = avro.io.BinaryDecoder(value_buf)
@@ -66,7 +66,7 @@ class ManyNumbersEncode(ManyNumbersBase):
         self.values = self.raw_values
 
     def avro(self):
-        schema = avro.schema.Parse(SCHEMA)
+        schema = avro.schema.parse(SCHEMA)
         writer = avro.io.DatumWriter(schema)
         output_buf = BytesIO()
         encoder = avro.io.BinaryEncoder(output_buf)
