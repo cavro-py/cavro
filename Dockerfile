@@ -1,5 +1,5 @@
 FROM alpine
-RUN echo 'http://nl.alpinelinux.org/alpine/edge/testing' >> /etc/apk/repositories
+
 RUN apk update
 RUN apk add g++ make python3 libffi-dev libgit2-dev snappy-dev
 RUN apk add python3-dev py3-numpy py3-pygit2 py3-pip
