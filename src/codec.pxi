@@ -1,3 +1,17 @@
+HAVE_BZIP2 = False
+try:
+    import bz2
+    HAVE_BZIP2 = True
+except ImportError:
+    pass
+
+HAVE_XZ = False
+try:
+    import lzma
+    HAVE_XZ = True
+except ImportError:
+    pass
+
 HAVE_ZLIB = False
 try:
     import zlib
@@ -71,12 +85,42 @@ cdef class DeflateCodec(Codec):
         return len(compressed)
 
 
+cdef class Bzip2Codec(Codec):
+    name = 'bzip2'
+
+    cdef const uint8_t[:] read_block(self, Reader reader, size_t length):
+        return bz2.decompress(reader.read_n(length))
+
+    cdef ssize_t write_block(self, Writer writer, const uint8_t[:] data) except -1:
+        cdef bytes compressed = bz2.compress(data)
+        writer.write_n(compressed)
+        return len(compressed)    
+
+
+cdef class LzmaCodec(Codec):
+    name = 'xz'
+
+    cdef const uint8_t[:] read_block(self, Reader reader, size_t length):
+        return lzma.decompress(reader.read_n(length))
+
+    cdef ssize_t write_block(self, Writer writer, const uint8_t[:] data) except -1:
+        cdef bytes compressed = lzma.compress(data)
+        writer.write_n(compressed)
+        return len(compressed)    
+
+
 CODECS = {
     b'null': NullCodec()
 }
 
 if HAVE_ZLIB:
     CODECS[b'deflate'] = DeflateCodec()
+
+if HAVE_BZIP2:
+    CODECS[b'bzip2'] = Bzip2Codec()
+
+if HAVE_XZ:
+    CODECS[b'xz'] = LzmaCodec()
 
 if HAVE_SNAPPY:
     CODECS[b'snappy'] = SnappyCodec()

@@ -123,10 +123,13 @@ cdef class Record:
     def _asdict(self):
         cdef dict items = {}
         cdef RecordField field
-        for field, data in zip(self.Type.fields, self.data):
+        cdef Py_ssize_t i = 0
+        for field in self.Type.fields:
+            data = self.data[i]
             if isinstance(data, Record):
                 data = data._asdict()
             items[field.name] = data
+            i += 1
         return items
 
     def __eq__(self, other):
@@ -155,6 +158,8 @@ cdef class RecordField:
             json_val = source['default']
             if schema.options.bytes_default_value_utf8 and isinstance(self.type, (BytesType, FixedType)):
                 default_value = json_val.encode('utf-8')
+            elif schema.options.string_types_default_unchanged and isinstance(self.type, (BytesType, FixedType, EnumType)):
+                default_value = json_val
             elif isinstance(self.type, UnionType):
                 sub_type = self.type.union_types[0]
                 default_value = sub_type.json_decode(json_val)
@@ -241,13 +246,12 @@ cdef object make_record_class(RecordType record_type):
 
 EMPTY_ARRAY = array.array(SSIZE_TYPECODE.decode())
 
-@cython.final
+
 cdef class RecordType(NamedType):
     type_name = 'record'
 
     cdef readonly str doc
     cdef readonly tuple fields
-    cdef Py_ssize_t [:] decode_indexes
     cdef dict field_dict
     cdef readonly type record
 
@@ -257,15 +261,13 @@ cdef class RecordType(NamedType):
         self.fields = tuple(
             RecordField(schema, f, self.effective_namespace) for f in source['fields']
         )
-        self.field_dict = {f.name: f for f in self.fields}
+        self.field_dict = {}
+        for field in self.fields:
+            if schema.options.record_fields_must_be_unique and field.name in self.field_dict:
+                raise InvalidName(f'Duplicate field name: {field.name}')
+            self.field_dict[field.name] = field
 
         n_fields = len(self.fields)
-        if n_fields == 0:
-            self.decode_indexes = EMPTY_ARRAY
-        else:
-            self.decode_indexes = cvarray((len(self.fields), ), sizeof(unsigned long), SSIZE_TYPECODE)
-            for i in range(len(self.fields)):
-                self.decode_indexes[i] = i
         self.record = make_record_class(self)
 
     cdef dict _extract_metadata(self, source):
@@ -314,16 +316,15 @@ cdef class RecordType(NamedType):
                 except InvalidValue as e:
                     e.schema_path = (field.name, ) + e.schema_path
                     raise
-                    
 
     cdef _binary_buffer_decode_record(self, Reader buffer):
         cdef RecordField field
         cdef list data = [None] * len(self.fields)
         cdef Record rec
-        cdef Py_ssize_t index
-        for (index, field) in zip(self.decode_indexes, self.fields):
-            if index >= 0: 
-                data[index] = field.type.binary_buffer_decode(buffer)
+        cdef Py_ssize_t index = 0
+        for field in self.fields:
+            data[index] = field.type.binary_buffer_decode(buffer)
+            index += 1
         rec = Record.__new__(self.record)
         rec.data = data
         return rec
@@ -419,7 +420,7 @@ cdef class RecordType(NamedType):
         })
 
     cdef AvroType _for_writer(self, AvroType writer):
-        cdef RecordType cloned
+        cdef PromotingRecordType cloned
         cdef RecordType writer_rec
         cdef RecordField field
         cdef Py_ssize_t i
@@ -432,11 +433,14 @@ cdef class RecordType(NamedType):
         reader_field_idx = {}
         reader_fields = {}
         aliases = {}
-        for i, field in zip(self.decode_indexes, self.fields):
+
+        i = 0
+        for field in self.fields:
             reader_field_idx[field.name] = i
             reader_fields[i] = field
             for alias in field.aliases:
                 aliases[alias] = i
+            i += 1
 
         # We're going to have to read each writer field in order anyway, but if it's a reader field,
         # Then it ends up in the corresponding decode_index slot, but should also be promoted etc..
@@ -444,6 +448,7 @@ cdef class RecordType(NamedType):
         out_fields = []
         decoded_reader_fields = set()
 
+        # Todo, only use promoting type if the field order is different
         for field in  writer_rec.fields:
             if field.name in reader_field_idx:
                 reader_index = reader_field_idx[field.name]
@@ -469,7 +474,7 @@ cdef class RecordType(NamedType):
             out_decode_indexes.append(reader_index)
             out_fields.append(field.placeholder())
         
-        cloned = self.clone_base()
+        cloned = self.clone_base(PromotingRecordType)
         cloned.decode_indexes = cvarray((len(out_decode_indexes), ), sizeof(unsigned long), SSIZE_TYPECODE)
         for i, idx in enumerate(out_decode_indexes):
             cloned.decode_indexes[i] = idx
@@ -477,3 +482,22 @@ cdef class RecordType(NamedType):
         cloned.field_dict = {f.name: f for f in cloned.fields}
         cloned.record = self.record
         return cloned
+
+
+cdef class PromotingRecordType(RecordType):
+    cdef Py_ssize_t [:] decode_indexes
+
+    cdef _binary_buffer_decode_record(self, Reader buffer):
+        cdef RecordField field
+        cdef list data = [None] * len(self.fields)
+        cdef Record rec
+        cdef Py_ssize_t index = 0
+        cdef Py_ssize_t field_index
+        for field in self.fields:
+            field_index = self.decode_indexes[index]
+            if field_index >= 0: 
+                data[field_index] = field.type.binary_buffer_decode(buffer)
+            index += 1
+        rec = Record.__new__(self.record)
+        rec.data = data
+        return rec

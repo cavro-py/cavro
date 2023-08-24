@@ -74,8 +74,10 @@ cdef class AvroType:
         else:
             self.value_adapters = value_adapters
 
-    cdef AvroType clone_base(self):
-        cdef AvroType clone = self.__class__.__new__(self.__class__)
+    cdef AvroType clone_base(self, cls=None):
+        if cls is None:
+            cls = self.__class__
+        cdef AvroType clone = cls.__new__(cls)
         clone.options = self.options
         clone.metadata = self.metadata
         clone.value_adapters = self.value_adapters
@@ -272,8 +274,8 @@ cdef class NamedType(AvroType):
             schema['aliases'] = list(self.aliases)
         return schema
 
-    cdef AvroType clone_base(self):
-        cdef NamedType inst = AvroType.clone_base(self)
+    cdef AvroType clone_base(self, cls=None):
+        cdef NamedType inst = AvroType.clone_base(self, cls)
         inst.name = self.name
         inst.namespace = self.namespace
         inst.effective_namespace = self.effective_namespace

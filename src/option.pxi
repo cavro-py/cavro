@@ -42,6 +42,7 @@ cdef class Options:
     enforce_enum_symbol_name_rules: bint = True
     enforce_type_name_rules: bint = True
     enforce_namespace_name_rules: bint = True
+    record_fields_must_be_unique: bint = True
     ascii_name_rules: bint = True
 
     allow_false_values_for_null: bint = False
@@ -63,7 +64,8 @@ cdef class Options:
     clamp_int_overflow: bint = False
     clamp_float_overflow: bint = False
 
-    bytes_default_value_utf8: bint = False
+    bytes_default_value_utf8: bint = False  # Avro 1.11/12 utf8 encode the default value for bytes (rather than latin1)
+    string_types_default_unchanged: bint = False # Avro < 1.11 pass default value back unmodified for bytes/fixed etc..
 
     decimal_check_exp_overflow: bint = False
 
@@ -92,6 +94,7 @@ DEFAULT_OPTIONS = Options()
 PERMISSIVE_OPTIONS = Options(
     allow_primitive_name_collision=True,
     enum_symbols_must_be_unique=False,
+    record_fields_must_be_unique=False,
     enforce_enum_symbol_name_rules=False,
     allow_false_values_for_null=True,
     allow_empty_unions=True,

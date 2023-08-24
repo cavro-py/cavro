@@ -27,6 +27,13 @@ cdef class Schema:
         self.logical_types = self._make_logical_types(options)
         self.type = AvroType.for_schema(self)
 
+    @classmethod
+    def wrap_type(self, AvroType avro_type, Options options=DEFAULT_OPTIONS):
+        source = json.dumps(avro_type.get_schema(set()))
+        cdef Schema inst = Schema(source, options)
+        inst.type = avro_type
+        return inst
+
     def _make_logical_types(self, options):
         logical_by_name = {}
         self.logical_types = logical_by_name

@@ -40,5 +40,5 @@ class InvalidValue(CavroException, ValueError):
     def __str__(self):
         if self.schema_path:
             path_str = ".".join(str(p) for p in self.schema_path)
-            return f"Invalid value {self.value} for type {self.dest_type.type_name} at {path_str}"
-        return f"Invalid value {self.value} for type {self.dest_type.type_name}"
+            return f"Invalid value {repr(self.value)} for type {self.dest_type.type_name} at {path_str}"
+        return f"Invalid value {repr(self.value)} for type {self.dest_type.type_name}"
