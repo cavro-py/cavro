@@ -22,7 +22,7 @@ def test_container_invalid_magic():
 
 def test_container_invalid_codec():
     bad_container = SIMPLE_CONTAINER.replace(b'null', b'xxxx')
-    with pytest.raises(ValueError, match=r"Unsupported codec: 'xxxx'"):
+    with pytest.raises(cavro.CodecUnavailable, match=r"Unsupported codec: 'xxxx'"):
         cavro.ContainerReader(bad_container)
 
 

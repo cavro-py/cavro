@@ -7,6 +7,14 @@ cdef str resolve_namespaced_name(str namespace, str name):
     return f'{namespace}.{name}'
 
 
+class class_inst_method:
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, inst, cls):
+        return partial(self.func, inst, cls)
+
+
 cdef class Schema:
 
     cdef readonly dict named_types
@@ -16,23 +24,28 @@ cdef class Schema:
 
     cdef readonly dict logical_types
 
-    def __init__(self, source, Options options=DEFAULT_OPTIONS, named_types=None, **extra_options):
-        if isinstance(source, (str, bytes)):
+    def __init__(self, source, Options options=DEFAULT_OPTIONS, named_types=None, parse_json=True, **extra_options):
+        if isinstance(source, (str, bytes)) and parse_json:
             source = json.loads(source)
         self.source = source
         if extra_options:
             options = options.replace(**extra_options)
         self.options = options
-        self.named_types = named_types or {}
+        self.named_types = {} if named_types is None else named_types
         self.logical_types = self._make_logical_types(options)
         self.type = AvroType.for_schema(self)
 
-    @classmethod
-    def wrap_type(self, AvroType avro_type, Options options=DEFAULT_OPTIONS):
-        source = json.dumps(avro_type.get_schema(set()))
-        cdef Schema inst = Schema(source, options)
-        inst.type = avro_type
-        return inst
+    @class_inst_method
+    def wrap_type(inst, cls, AvroType avro_type, Options options=None):
+        if inst is not None:
+            if options is None:
+                options = inst.options
+        if options is None:
+            options = DEFAULT_OPTIONS
+        source = avro_type.get_schema(set())
+        cdef Schema new_inst = cls(source, options, parse_json=False)
+        new_inst.type = avro_type
+        return new_inst
 
     def _make_logical_types(self, options):
         logical_by_name = {}
@@ -44,7 +57,11 @@ cdef class Schema:
         return logical_by_name
     
     cdef void register_type(self, str namespace, str name, AvroType avro_type):
-        self.named_types[resolve_namespaced_name(namespace, name)] = avro_type
+        resolved = resolve_namespaced_name(namespace, name)
+        if self.options.named_type_names_must_be_unique and resolved in self.named_types:
+            existing = self.named_types[resolved]
+            raise DuplicateName(f'Name {resolved!r} appears multiple times in schema')
+        self.named_types[resolved] = avro_type
 
     property canonical_form:
         def __get__(self):

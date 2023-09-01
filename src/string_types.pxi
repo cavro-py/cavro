@@ -3,8 +3,11 @@
 cdef class BytesType(AvroType):
     type_name = "bytes"
 
+    cpdef AvroType copy(self):
+        return self.clone_base()
+
     cdef dict _extract_metadata(self, source):
-        return _strip_keys(source, {'type'})
+        return _strip_keys(dict(source), {'type'})
 
     cpdef dict _get_schema_extra(self, set created):
         return {}
@@ -21,7 +24,7 @@ cdef class BytesType(AvroType):
         return buffer.read_bytes(length)
 
     cdef int _get_value_fitness(self, value) except -1:
-        if isinstance(value, bytes):  # If bytes, we're good
+        if isinstance(value, (bytes, bytearray)):  # If bytes, we're good
             return FIT_EXACT
         # If there's a bytes_codec, then if we get get value to be a str, then we have a way through
         if not self.options.bytes_codec:
@@ -51,7 +54,7 @@ cdef class BytesType(AvroType):
         return sval.encode('latin-1')
 
     cpdef object _convert_value(self, object value):
-        if isinstance(value, bytes):
+        if isinstance(value, (bytes, bytearray)):
             return value
         codec = self.options.bytes_codec
         if not codec:
@@ -70,13 +73,28 @@ cdef class BytesType(AvroType):
         if isinstance(writer, StringType):
             return self # Decoding is identical for bytes / str
 
+    cdef object resolve_default_value(self, object schema_default, str field):
+        if self.options.string_types_default_unchanged:
+            return schema_default
+        if self.options.bytes_default_value_utf8:
+            try:
+                schema_default = schema_default.encode('utf-8')
+            except (AttributeError, TypeError, UnicodeEncodeError) as e:
+                raise TypeError(f"Default value {schema_default!r} is not valid for bytes field: {field}") from e
+            return schema_default
+        return AvroType.resolve_default_value(self, schema_default, field)
+        
+
 
 @cython.final
 cdef class StringType(AvroType):
     type_name = "string"
 
+    cpdef AvroType copy(self):
+        return self.clone_base()
+
     cdef dict _extract_metadata(self, source):
-        return _strip_keys(source, {'type'})
+        return _strip_keys(dict(source), {'type'})
 
     cpdef dict _get_schema_extra(self, set created):
         return {}
@@ -137,8 +155,13 @@ cdef class FixedType(NamedType):
             raise ValueError(f'Invalid negative size for fixed: {self.size}')
         super().__init__(schema, source, namespace)
 
+    cpdef AvroType copy(self):
+        cdef FixedType new_inst =  self.clone_base()
+        new_inst.size = self.size
+        return new_inst
+
     cdef dict _extract_metadata(self, source):
-        return _strip_keys(source, {'type', 'name', 'namespace', 'aliases', 'size'})
+        return _strip_keys(dict(source), {'type', 'name', 'namespace', 'aliases', 'size'})
 
     cpdef dict _get_schema_extra(self, set created):
         return dict(NamedType._get_schema_extra(self, created), size=self.size)
@@ -155,7 +178,7 @@ cdef class FixedType(NamedType):
 
     cdef int _get_value_fitness(self, value) except -1:
         MAX_FIT = FIT_EXACT
-        if not isinstance(value, bytes):
+        if not isinstance(value, (bytes, bytearray)):
             MAX_FIT = FIT_OK
             # Let's see if we can recover this
             if self.options.fixed_codec is None:
@@ -198,7 +221,7 @@ cdef class FixedType(NamedType):
         return encoded
 
     cpdef object _convert_value(self, object value):
-        if not isinstance(value, bytes):
+        if not isinstance(value, (bytes, bytearray)):
             # Let's see if we can recover this
             if self.options.fixed_codec is None:
                 raise ValueError(f"Invalid non-bytes value for fixed: '{value}'")
@@ -229,3 +252,22 @@ cdef class FixedType(NamedType):
             'name': self.type,
             'size': self.size
         })
+
+    cdef AvroType _for_writer(self, AvroType writer):
+        cdef FixedType writer_fixed
+        if not isinstance(writer, FixedType):
+            return
+        writer_fixed = writer
+        if writer_fixed.type not in self.get_namespaced_aliases() or writer_fixed.size != self.size:
+            return
+        return self
+
+    cdef object resolve_default_value(self, object schema_default, str field):
+        if self.options.string_types_default_unchanged:
+            return schema_default
+        if self.options.bytes_default_value_utf8:
+            try:
+                schema_default = schema_default.encode('utf-8').decode('latin-1')
+            except (AttributeError, TypeError, UnicodeEncodeError) as e:
+                raise TypeError(f"Default value {schema_default!r} is not valid for fixed field: {field}") from e
+        return AvroType.resolve_default_value(self, schema_default, field)

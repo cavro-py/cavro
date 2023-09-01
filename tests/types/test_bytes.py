@@ -87,10 +87,17 @@ def test_bytes_can_encode(value, expected, can_encode_utf, can_encode_latin1, co
         assert schema.can_encode(value) == expected
 
 
-def test_bytes_encoding_decoding():
+@pytest.mark.parametrize('value', [
+    b'',
+    b'abacus',
+    '🧙🏽‍♀️'.encode(),
+    bytearray(b'Hi')
+])
+def test_bytes_encoding_decoding(value):
     schema = cavro.Schema('"bytes"')
-    encoded = schema.binary_encode(b'abacus')
-    assert schema.binary_decode(encoded) == b'abacus'
+    encoded = schema.binary_encode(value)
+    assert schema.binary_decode(encoded) == bytes(value)
+
 
 def test_bytes_decoding_json():
     schema = cavro.Schema('"bytes"', cavro.Options(bytes_codec='utf8'))

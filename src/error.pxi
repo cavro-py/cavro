@@ -7,6 +7,12 @@ class InvalidName(CavroException):
     pass
 
 
+class UnknownType(CavroException):
+    def __init__(self, name):
+        self.name = name
+        super().__init__(f"Unknown type: {name}")
+
+
 class DuplicateName(CavroException):
     pass
 
@@ -19,11 +25,15 @@ class ExponentTooLarge(CavroException):
     pass
 
 
+class CodecUnavailable(CavroException):
+    pass
+
+
 class CannotPromoteError(CavroException):
     def __init__(self, reader_type, writer_type, extra=None):
         self.reader_type = reader_type
         self.writer_type = writer_type
-        msg = f"Cannot promote {reader_type} to {writer_type}"
+        msg = f"Cannot promote {reader_type.get_schema()} to {writer_type.get_schema()}"
         if extra:
             msg += ': ' + extra
         super().__init__(msg)

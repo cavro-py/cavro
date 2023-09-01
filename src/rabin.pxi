@@ -41,12 +41,11 @@ cdef class Rabin:
             self.value = shifted ^ swizzle
 
     def digest(self):
-        cdef int64_t value = self.value
-        cdef const uint8_t* buffer = <uint8_t*>&value
-        return buffer[:8]
+        cdef uint64_t value = self.value
+        return int(value).to_bytes(8, 'little', signed=False)
 
     def hexdigest(self):
-        return self.value.__format__('x')
+        return self.digest().hex()
 
     def copy(self):
         new_ver = Rabin()

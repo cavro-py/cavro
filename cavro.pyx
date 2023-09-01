@@ -1,5 +1,6 @@
 
 cimport cython
+import warnings
 from cpython.object cimport Py_SIZE
 from libc.stdint cimport *
 from libc.string cimport memcmp
@@ -10,6 +11,7 @@ import decimal
 import enum
 from cpython cimport array
 from cython cimport bint
+from functools import partial
 import uuid
 import math
 from types import MappingProxyType

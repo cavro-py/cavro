@@ -11,6 +11,9 @@ cdef class Writer:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement write_n")
 
+    cdef int flush(self) except -1:
+        pass
+
 
 cdef class Reader:
 
@@ -63,3 +66,6 @@ cdef class FileObjWriter(Writer):
 
     cdef int write_n(self, const uint8_t[:] data) except -1:
         self.file_obj.write(data)
+
+    cdef int flush(self) except -1:
+        self.file_obj.flush()

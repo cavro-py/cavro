@@ -10,8 +10,11 @@ cdef float FLOAT_INT_THRESHOLD = 0.001
 cdef class BoolType(AvroType):
     type_name = "boolean"
 
+    cpdef AvroType copy(self):
+        return self.clone_base()
+
     cdef dict _extract_metadata(self, source):
-        return _strip_keys(source, {'type'})
+        return _strip_keys(dict(source), {'type'})
 
     cpdef dict _get_schema_extra(self, set created):
         return {}
@@ -20,7 +23,7 @@ cdef class BoolType(AvroType):
         cdef bint bool_val = self._convert_value(value)
         buffer.write_u8(bool_val)
 
-    cdef object binary_buffer_decode(self, Reader buffer):
+    cdef object _binary_buffer_decode(self, Reader buffer):
         return py_bool(buffer.read_u8())
 
     cdef int _get_value_fitness(self, value) except -1:
@@ -56,8 +59,11 @@ cdef class BoolType(AvroType):
 cdef class IntType(AvroType):
     type_name = "int"
 
+    cpdef AvroType copy(self):
+        return self.clone_base()
+
     cdef dict _extract_metadata(self, source):
-        return _strip_keys(source, {'type'})
+        return _strip_keys(dict(source), {'type'})
 
     cpdef dict _get_schema_extra(self, set created):
         return {}
@@ -120,8 +126,11 @@ cdef class IntType(AvroType):
 cdef class LongType(AvroType):
     type_name = "long"
 
+    cpdef AvroType copy(self):
+        return self.clone_base()
+
     cdef dict _extract_metadata(self, source):
-        return _strip_keys(source, {'type'})
+        return _strip_keys(dict(source), {'type'})
 
     cpdef dict _get_schema_extra(self, set created):
         return {}
@@ -188,8 +197,11 @@ cdef class LongType(AvroType):
 cdef class FloatType(AvroType):
     type_name = "float"
 
+    cpdef AvroType copy(self):
+        return self.clone_base()
+
     cdef dict _extract_metadata(self, source):
-        return _strip_keys(source, {'type'})
+        return _strip_keys(dict(source), {'type'})
 
     cpdef dict _get_schema_extra(self, set created):
         return {}
@@ -266,7 +278,9 @@ cdef class FloatType(AvroType):
         return self._convert_value(value)
 
     cdef json_decode(self, value):
-        if not isinstance(value, float):
+        if isinstance(value, (py_bool, bool_)):
+            raise InvalidValue(value, self)
+        if not isinstance(value, (float, int)):
             raise InvalidValue(value, self)
         if value < -FLT_MAX or value > FLT_MAX:
             raise OverflowError(f"Value {value} out of range for float")
@@ -286,8 +300,11 @@ cdef class FloatType(AvroType):
 cdef class DoubleType(AvroType):
     type_name = "double"
 
+    cpdef AvroType copy(self):
+        return self.clone_base()
+
     cdef dict _extract_metadata(self, source):
-        return _strip_keys(source, {'type'})
+        return _strip_keys(dict(source), {'type'})
 
     cpdef dict _get_schema_extra(self, set created):
         return {}
@@ -349,7 +366,9 @@ cdef class DoubleType(AvroType):
         return self._convert_value(value)
 
     cdef json_decode(self, value):
-        if not isinstance(value, float):
+        if isinstance(value, (py_bool, bool_)):
+            raise InvalidValue(value, self)
+        if not isinstance(value, (float, int)):
             raise InvalidValue(value, self)
         return value
 

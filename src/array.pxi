@@ -11,10 +11,17 @@ cdef class ArrayType(AvroType):
         super().__init__(schema, source, namespace)
         self.item_type = AvroType.for_source(schema, source['items'], namespace)
 
+    cpdef AvroType copy(self):
+        cdef ArrayType new_inst = self.clone_base()
+        new_inst.item_type = self.item_type
+        return new_inst
+
     cdef dict _extract_metadata(self, source):
-        return _strip_keys(source, {'type', 'items'})
+        return _strip_keys(dict(source), {'type', 'items'})
 
     def walk_types(self, visited):
+        if self in visited:
+            return
         yield from super().walk_types(visited)
         yield from self.item_type.walk_types(visited)
 
@@ -59,6 +66,8 @@ cdef class ArrayType(AvroType):
             level = FIT_EXACT
         elif isinstance(value, dict):
             level = FIT_POOR
+        elif self.options.missing_values_can_be_empty_container and value is MISSING_VALUE:
+            return FIT_POOR
         elif isinstance(value, (bytes, str)) or not isinstance(value, collections.abc.Iterable):
             return FIT_NONE
         try:
@@ -81,6 +90,9 @@ cdef class ArrayType(AvroType):
     cpdef object convert_value(self, object value, check_value=True):
         cdef int item_fitness
         cdef AvroType item_type = self.item_type
+
+        if self.options.missing_values_can_be_empty_container and value is MISSING_VALUE:
+            return []
 
         it = iter(value)
         for item in it:
@@ -105,3 +117,7 @@ cdef class ArrayType(AvroType):
                 cloned = self.clone_base()
                 cloned.item_type = promoted_item
                 return cloned
+
+    cdef bint accepts_missing_value(self):
+        if self.options .missing_values_can_be_empty_container:
+            return True

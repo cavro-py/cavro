@@ -29,7 +29,7 @@ cdef class PlaceholderType(AvroType):
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         raise NotImplementedError("Placeholder types cannot be encoded")
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, Reader buffer):
         return self.default_value
 
     cdef int _get_value_fitness(self, value) except -1:
@@ -146,28 +146,19 @@ cdef class RecordField:
     cdef readonly AvroType type
     cdef readonly object default_value
     cdef readonly object order
-    cdef readonly set aliases
+    cdef readonly frozenset aliases
 
     def __init__(self, schema, source, namespace):
         cdef AvroType sub_type
         self.name = source['name']
         self.doc = source.get('doc', '')
         self.type = AvroType.for_source(schema, source['type'], namespace)
-        default_value = None if isinstance(self.type, NullType) else NO_DEFAULT # Null defaults to Null (TODO: is this right?)
-        if 'default' in source:
-            json_val = source['default']
-            if schema.options.bytes_default_value_utf8 and isinstance(self.type, (BytesType, FixedType)):
-                default_value = json_val.encode('utf-8')
-            elif schema.options.string_types_default_unchanged and isinstance(self.type, (BytesType, FixedType, EnumType)):
-                default_value = json_val
-            elif isinstance(self.type, UnionType):
-                sub_type = self.type.union_types[0]
-                default_value = sub_type.json_decode(json_val)
-            else:
-                default_value = self.type.json_decode(json_val)
-        self.default_value = default_value
+        self.default_value = self.type.resolve_default_value(source.get('default', NO_DEFAULT), self.name)
         self.order = Order(source.get('order', 'ascending'))
-        self.aliases = set(source.get('aliases', []))
+        alias_val = source.get('aliases', [])
+        if not isinstance(alias_val, (list, tuple, set)):
+            raise ValueError(f"Aliases must be a list/tuple/set, got: {repr(alias_val)}")
+        self.aliases = frozenset(alias_val)
 
     cdef for_reader(self, str reader_name, AvroType reader_type):
         cdef RecordField cloned
@@ -187,7 +178,7 @@ cdef class RecordField:
         rec.type = PlaceholderType(self.type.options, self.default_value)
         rec.default_value = self.default_value
         rec.order = Order.ASC
-        rec.aliases = set()
+        rec.aliases = frozenset()
         return rec
 
     cdef CanonicalForm canonical_form(self, set created):
@@ -207,7 +198,7 @@ cdef class RecordField:
             schema['aliases'] = list(self.aliases)
         if self.order != Order.ASC:
             schema['order'] = self.order.value
-        if self.default_value is not NO_DEFAULT:
+        if self.default_value not in {NO_DEFAULT, MISSING_VALUE}:
             schema['default'] = self.type.json_format(self.default_value)
         return schema
 
@@ -270,8 +261,16 @@ cdef class RecordType(NamedType):
         n_fields = len(self.fields)
         self.record = make_record_class(self)
 
+    cpdef AvroType copy(self):
+        cdef RecordType new_inst = self.clone_base()
+        new_inst.doc = self.doc
+        new_inst.fields = self.fields
+        new_inst.field_dict = self.field_dict
+        new_inst.record = self.record
+        return new_inst
+
     cdef dict _extract_metadata(self, source):
-        return _strip_keys(source, {
+        return _strip_keys(dict(source), {
             'type', 
             'name', 
             'namespace', 
@@ -281,6 +280,8 @@ cdef class RecordType(NamedType):
         })
 
     def walk_types(self, visited):
+        if self in visited:
+            return
         yield from super().walk_types(visited)
         for field in self.fields:
             yield from field.type.walk_types(visited)
@@ -303,19 +304,29 @@ cdef class RecordType(NamedType):
                     raise ValueError(f"required field '{field.name}' missing")
                 field.type.binary_buffer_encode(buffer, field_value)
                 index = index + 1
-        else:
-            for field in self.fields:
-                try:
-                    field_value = value.get(field.name, field.default_value)
-                except AttributeError as e:
-                    raise InvalidValue(value, self, (self.name, )) from e
-                if field_value is NO_DEFAULT:
-                    raise ValueError(f"required field '{field.name}' missing")
-                try:
-                    field.type.binary_buffer_encode(buffer, field_value)
-                except InvalidValue as e:
-                    e.schema_path = (field.name, ) + e.schema_path
-                    raise
+            return 0
+        if not self.options.record_allow_extra_fields:
+            extra_fields = value.keys() - self.field_dict.keys()
+            if extra_fields:
+                extra_field, *_ = extra_fields
+                raise InvalidValue('...', self, (extra_field, ))
+        if not self.options.record_encode_use_defaults:
+            missing_fields = self.field_dict.keys() - value.keys()
+            if missing_fields:
+                missing_field, *_ = missing_fields
+                raise InvalidValue('<missing>', self, (missing_field, ))
+        for field in self.fields:
+            try:
+                field_value = value.get(field.name, field.default_value)
+            except AttributeError as e:
+                raise InvalidValue(value, self, (self.name, )) from e
+            if field_value is NO_DEFAULT:
+                raise ValueError(f"required field '{field.name}' missing")
+            try:
+                field.type.binary_buffer_encode(buffer, field_value)
+            except InvalidValue as e:
+                e.schema_path = (field.name, ) + e.schema_path
+                raise
 
     cdef _binary_buffer_decode_record(self, Reader buffer):
         cdef RecordField field
@@ -348,7 +359,12 @@ cdef class RecordType(NamedType):
         cdef RecordField field
         if isinstance(value, self.record):
             return FIT_EXACT
-        elif isinstance(value, dict):
+        if isinstance(value, dict):
+            if self.options.record_values_type_hint and '-type' in value:
+                value = value.copy()
+                type_val = value.pop('-type')
+                if type_val != self.type:
+                    return FIT_NONE
             remaining_keys = set(value.keys())
             for field in self.fields:
                 field_value = value.get(field.name, field.default_value)
@@ -359,7 +375,9 @@ cdef class RecordType(NamedType):
                     return level
                 remaining_keys.discard(field.name)
             if remaining_keys:
-                return FIT_POOR
+                if self.options.record_allow_extra_fields:
+                    return FIT_POOR
+                return FIT_NONE
             return level
 
     cdef json_format(self, value):
@@ -371,7 +389,7 @@ cdef class RecordType(NamedType):
             out[field.name] = field_type.json_format(value)
         return out
 
-    cdef json_decode_record(self, value):
+    cdef json_decode_record(self, dict value):
         cdef list data = [None] * len(self.fields)
         cdef RecordField field
         cdef Record rec
@@ -387,7 +405,7 @@ cdef class RecordType(NamedType):
         rec.data = data
         return rec
 
-    cdef json_decode_dict(self, value):
+    cdef json_decode_dict(self, dict value):
         cdef dict data = {}
         cdef RecordField field
 
@@ -426,9 +444,9 @@ cdef class RecordType(NamedType):
         cdef Py_ssize_t i
         if not isinstance(writer, RecordType):
             return
-        if writer.name != self.name:
-            return
         writer_rec = writer
+        if writer_rec.type not in self.get_namespaced_aliases():
+            return
         # This allows us to go from the field name to the index in the reader record
         reader_field_idx = {}
         reader_fields = {}

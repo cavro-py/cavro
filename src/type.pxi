@@ -6,6 +6,7 @@ cdef int FIT_EXACT = 3 # Value is the exact type and needs no further conversion
 
 
 CANONICAL_FORM_KEYS = ('name', 'type', 'fields', 'symbols', 'items', 'values', 'size')
+MISSING_VALUE = object()
 
 cdef class CanonicalForm(str):
     pass
@@ -57,7 +58,7 @@ cdef class AvroType:
             return TYPES_BY_NAME[type_name](schema, source, namespace)
         if type_name == 'error' and schema.options.allow_error_type:
             return RecordType(schema, source, namespace)
-        raise ValueError(f"Unknown type: {type_name}")
+        raise UnknownType(namespaced)
 
     @classmethod
     def for_schema(cls, schema):
@@ -82,6 +83,10 @@ cdef class AvroType:
         clone.metadata = self.metadata
         clone.value_adapters = self.value_adapters
         return clone
+
+    cpdef AvroType copy(self):
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement clone")
 
     cdef _make_logical(self, schema, source):
         cdef str logical_type_name = source.get('logicalType')
@@ -112,6 +117,15 @@ cdef class AvroType:
 
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef ValueAdapter adapter
+
+        if isinstance(value, tuple) and len(value) == 2 and not isinstance(self, ArrayType):
+            type_name, inner_value = value
+            if type_name == self.type:
+                try:
+                    return self.binary_buffer_encode(buffer, inner_value)
+                except Exception as e:
+                    pass
+
         for adapter in self.value_adapters:
             value = adapter.encode_value(value)
         return self._binary_buffer_encode(buffer, value)
@@ -133,12 +147,23 @@ cdef class AvroType:
 
     cdef int get_value_fitness(self, value) except -1:
         cdef ValueAdapter adapter
+        
+        if isinstance(value, tuple) and len(value) == 2 and not isinstance(self, ArrayType):
+            type_name, inner_value = value
+            if type_name == self.type:
+                inner_fitness = self._get_value_fitness(inner_value)
+                return inner_fitness
+
         for adapter in self.value_adapters:
             try:
                 value = adapter.encode_value(value)
-            except (ValueError, TypeError, InvalidValue):
+            except Exception as e:
                 return FIT_NONE
-        return self._get_value_fitness(value)
+        value_fit = self._get_value_fitness(value)
+        if value_fit > FIT_NONE:
+            return value_fit
+
+        return FIT_NONE
 
     cdef int _get_value_fitness(self, value) except -1:
         raise NotImplementedError(
@@ -165,16 +190,53 @@ cdef class AvroType:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement _get_schema_extra")
 
-    cdef AvroType for_writer(self, AvroType writer):
+    cdef AvroType for_writer(self, AvroType writer, bint _allow_deferrals=True):
+        cdef UnionType writer_union
+        cdef AvroType promoted
+        #cdef AvroType cloned
+        cdef bint allow_deferrals = _allow_deferrals and self.options.defer_schema_promotion_errors
+        
+        promote_error = None
+        promoted = None
+
         if self.canonical_form(set()) == writer.canonical_form(set()):
             return writer
-        promoted = self._for_writer(writer)
-        if promoted is None:
-            raise CannotPromoteError(self, writer)
+        if isinstance(writer, UnionType) and not isinstance(self, UnionType):
+            writer_union = writer
+            try:
+                promoted = writer_union.for_reader(self)
+            except CannotPromoteError as e:
+                promote_error = e
+        else:
+            try:
+                promoted = self._for_writer(writer)
+            except CannotPromoteError as e:
+                promote_error = e
+            
+        if promoted is None and promote_error is None:
+            promote_error = CannotPromoteError(self, writer)
+        
+        if promote_error is not None:
+            if allow_deferrals:
+                cloned = writer.copy()
+                cloned.value_adapters = (CannotPromote(cloned, writer),) + cloned.value_adapters
+                return cloned
+            raise promote_error
         return promoted
 
     cdef AvroType _for_writer(self, AvroType writer):
         pass
+
+    cdef bint accepts_missing_value(self):
+        return False
+
+    cdef object resolve_default_value(self, object schema_default, str field):
+        if schema_default is NO_DEFAULT:
+            return NO_DEFAULT
+        try:
+            return self.json_decode(schema_default)
+        except (TypeError, AttributeError, ValueError) as e:
+            raise TypeError(f"Default value {schema_default!r} is not valid for field: {field}") from e
 
     def walk_types(self, visited):
         if self in visited:
@@ -185,6 +247,8 @@ cdef class AvroType:
     cpdef get_schema(self, created=None):
         if created is None:
             created = set()
+        if self.options.expand_types_in_schema:
+            created = created.copy()
         if isinstance(self, NamedType):
             type_name = self.type
             if type_name in created:
@@ -206,9 +270,6 @@ cdef class AvroType:
             return json.dumps(self.get_schema())
         else:
             return super().__str__()
-
-
-
 
 
 cdef class NamedType(AvroType):
@@ -257,21 +318,36 @@ cdef class NamedType(AvroType):
                 else:
                     raise ValueError(f"'{name}' is not allowed as a name")
 
-        self.aliases = frozenset(source.get('aliases', []))
+        alias_val = source.get('aliases', [])
+        if not isinstance(alias_val, (list, tuple, set)):
+            if self.options.allow_aliases_to_be_string:
+                alias_val = [alias_val]
+            else:
+                raise ValueError(f"Aliases must be a list/tuple/set, got: {repr(alias_val)}")
+        self.aliases = frozenset(alias_val)
         schema_t.register_type(self.effective_namespace, self.name, self)
 
     property type:
         def __get__(self):
             return resolve_namespaced_name(self.effective_namespace, self.name)
 
+    cdef frozenset get_namespaced_aliases(self):
+        cdef frozenset all_names = self.aliases | {self.name}
+        if not self.effective_namespace:
+            return all_names
+        return frozenset(resolve_namespaced_name(self.effective_namespace, alias) for alias in all_names)
+
     cpdef dict _get_schema_extra(self, set created):
-        schema = {
-            'name': self.name,
-        }
+        schema = {}
         if self.effective_namespace:
-            schema['namespace'] = self.effective_namespace
+            if self.options.inline_namespaces:
+                schema['name'] = f"{self.effective_namespace}.{self.name}"
+            else:
+                schema['namespace'] = self.effective_namespace
         if self.aliases:
             schema['aliases'] = list(self.aliases)
+        if 'name' not in schema:
+            schema['name'] = self.name
         return schema
 
     cdef AvroType clone_base(self, cls=None):
@@ -283,7 +359,7 @@ cdef class NamedType(AvroType):
         return inst
 
     cdef dict _extract_metadata(self, source):
-        return _strip_keys(source, {
+        return _strip_keys(dict(source), {
             'type', 
             'name', 
             'namespace', 

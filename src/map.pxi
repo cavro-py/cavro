@@ -10,10 +10,18 @@ cdef class MapType(AvroType):
         self.key_type = StringType(schema, {'type': 'string'}, namespace) # This way we pick up options
         self.value_type = AvroType.for_source(schema, source['values'], namespace)
 
+    cpdef AvroType copy(self):
+        cdef MapType new_inst = self.clone_base()
+        new_inst.key_type = self.key_type
+        new_inst.value_type = self.value_type
+        return new_inst
+
     cdef dict _extract_metadata(self, source):
-        return _strip_keys(source, {'type', 'values'})
+        return _strip_keys(dict(source), {'type', 'values'})
 
     def walk_types(self, visited):
+        if self in visited:
+            return
         yield from super().walk_types(visited)
         yield from self.value_type.walk_types(visited)
 
@@ -33,6 +41,7 @@ cdef class MapType(AvroType):
                     e.schema_path = (key, ) + e.schema_path
                     raise
             zigzag_encode_long(buffer, 0)
+        return 0
 
     cdef _binary_buffer_decode(self, Reader buffer):
         cdef dict out = {}
@@ -69,6 +78,10 @@ cdef class MapType(AvroType):
         cdef int level = FIT_OK
         if isinstance(value, dict):
             level = FIT_EXACT
+        
+        elif self.options.missing_values_can_be_empty_container and value is MISSING_VALUE:
+            return FIT_POOR
+            
         if hasattr(value, 'items'):
             value = value.items()
         try:
@@ -115,6 +128,9 @@ cdef class MapType(AvroType):
         else:
             value = orig_value
 
+        if self.options.missing_values_can_be_empty_container and value is MISSING_VALUE:
+            return {}
+
         it = iter(value)
         for item in it:
             try:
@@ -151,3 +167,7 @@ cdef class MapType(AvroType):
                 cloned.key_type = writer_map.key_type
                 cloned.value_type = promoted_value
                 return cloned
+
+    cdef bint accepts_missing_value(self):
+        if self.options .missing_values_can_be_empty_container:
+            return True

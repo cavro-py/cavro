@@ -27,7 +27,7 @@ cdef class EnumType(NamedType):
         if schema.options.enforce_enum_symbol_name_rules:
             for symbol in seen_symbols:
                 if not isinstance(symbol, str):
-                    raise InvalidName('Enum symbols must be strings')
+                    raise InvalidName('Enum symbols must be a list of strings')
                 if schema.options.enforce_enum_symbol_name_rules:
                     if not name_pattern.fullmatch(symbol):
                         raise InvalidName(f"Enum symbol '{symbol}' is not a valid name")
@@ -43,8 +43,16 @@ cdef class EnumType(NamedType):
                 raise ValueError(f"Default value '{self.default_value}' not in enum symbols")
         self.doc = source.get('doc', '')
 
+    cpdef AvroType copy(self):
+        cdef RecordType new_inst = self.clone_base()
+        new_inst.symbols = self.symbols
+        new_inst.symbol_indexes = self.symbol_indexes
+        new_inst.default_value = self.default_value
+        new_inst.doc = self.doc
+        return new_inst
+
     cdef dict _extract_metadata(self, source):
-        return _strip_keys(source, {
+        return _strip_keys(dict(source), {
             'type',
             'name', 
             'namespace', 
@@ -99,19 +107,28 @@ cdef class EnumType(NamedType):
         })
 
     cdef AvroType _for_writer(self, AvroType writer):
+        if not isinstance(writer, EnumType):
+            return
+        cdef EnumType writer_enum = writer
+        if writer_enum.type not in self.get_namespaced_aliases():
+            return
         reader_symbols = set(self.symbols)
-        writer_symbols = set(writer.symbols)
+        writer_symbols = set(writer_enum.symbols)
         writer_extra_symbols = writer_symbols - reader_symbols
         if not writer_extra_symbols:  # Reader knows about all possible symbols
             return self
         if self.default_value is NO_DEFAULT:
             raise CannotPromoteError(self, writer, f"reader has no default value, but writer has extra symbols: {', '.join(writer_extra_symbols)}")
         
-        cdef EnumType writer_enum = writer
         cdef EnumType new_type = writer.clone_base()
         new_type.symbols = tuple(s if s in reader_symbols else self.default_value for s in writer.symbols)
         new_type.symbol_indexes = writer_enum.symbol_indexes
         return new_type
+
+    cdef object resolve_default_value(self, object schema_default, str field):
+        if self.options.string_types_default_unchanged:
+            return schema_default
+        return AvroType.resolve_default_value(self, schema_default, field)
 
 
         

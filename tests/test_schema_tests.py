@@ -38,3 +38,12 @@ def test_avro_schema_tests(schema_text, canonical, fingerprint):
         )
     if fingerprint:
         assert schema.fingerprint().value == int(fingerprint)
+
+
+def test_wrapping():
+    schema = cavro.Schema('[{"type": "int"}, {"type": "string"}]')
+    assert schema.schema == ['int', 'string']
+    int_schema = schema.wrap_type(schema.type.union_types[0])
+    assert int_schema.schema == 'int'
+    str_schema = cavro.Schema.wrap_type(schema.type.union_types[1])
+    assert str_schema.schema == 'string'
