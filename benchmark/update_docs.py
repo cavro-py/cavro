@@ -23,6 +23,7 @@ from benchmark.main import ALL_TEST_CLASSES
 def get_results():
     repo = pygit2.Repository('.')
     perf_refs = {}
+    print('Finding refs:')
     for ref in repo.references:
         print(ref)
         if ref.startswith('refs/perf'):
