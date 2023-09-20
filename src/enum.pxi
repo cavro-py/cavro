@@ -96,7 +96,7 @@ cdef class EnumType(NamedType):
         return value
 
     cdef CanonicalForm canonical_form(self, set created):
-        if self in created and not self.options.canonical_form_repeat_fixed_enum:
+        if self in created and not self.options.canonical_form_repeat_enum:
             return CanonicalForm('"' + self.type + '"')
         created.add(self)
         return dict_to_canonical({

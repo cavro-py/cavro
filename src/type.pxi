@@ -6,7 +6,17 @@ cdef int FIT_EXACT = 3 # Value is the exact type and needs no further conversion
 
 
 CANONICAL_FORM_KEYS = ('name', 'type', 'fields', 'symbols', 'items', 'values', 'size')
-MISSING_VALUE = object()
+
+cdef class Sentinel:
+    cdef readonly str name
+    
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return f'<{self.name}: {id(self)}>'
+
+MISSING_VALUE = Sentinel('MISSING_VALUE')
 
 cdef class CanonicalForm(str):
     pass
@@ -41,6 +51,7 @@ cdef class AvroType:
 
     @classmethod
     def for_source(cls, schema, source, namespace=None):
+        cdef Schema schema_ob = schema
         if isinstance(source, (list, tuple)):
             return UnionType(schema, source, namespace)
         if isinstance(source, str):
@@ -49,15 +60,14 @@ cdef class AvroType:
             type_name = source['type']
         except (TypeError, KeyError) as e:
             raise ValueError(f"Could not find key 'type' in schema definition: {repr(source)}")
-        namespaced = resolve_namespaced_name(namespace, type_name)
-        if namespaced in schema.named_types:
-            return schema.named_types[namespaced]
-        if type_name in schema.named_types:
-            return schema.named_types[type_name]
+        inst = schema_ob.find_type(namespace, type_name, False)
+        if inst is not None:
+            return inst
         if type_name in TYPES_BY_NAME:
             return TYPES_BY_NAME[type_name](schema, source, namespace)
         if type_name == 'error' and schema.options.allow_error_type:
             return RecordType(schema, source, namespace)
+        namespaced = resolve_namespaced_name(namespace, type_name)
         raise UnknownType(namespaced)
 
     @classmethod
@@ -258,6 +268,8 @@ cdef class AvroType:
         try:
             return self.json_decode(schema_default)
         except (TypeError, AttributeError, ValueError) as e:
+            if self.options.allow_invalid_default_values:
+                return schema_default
             raise TypeError(f"Default value {schema_default!r} is not valid for field: {field}") from e
 
     def walk_types(self, visited):

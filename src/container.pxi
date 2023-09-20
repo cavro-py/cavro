@@ -56,7 +56,10 @@ cdef class ContainerReader:
         if viewcmp(header, OBJ_MAGIC):
             raise ValueError(f"Invalid file header, expected: {bytes(OBJ_MAGIC)} got {bytes(header)}")
         self.metadata = OBJ_FILE_METADATA.binary_read(self.reader)
-        self.writer_schema = Schema(self.metadata['avro.schema'], options=options, allow_union_default_any_member=True)
+        writer_options = options
+        if reader_schema is not None:
+            writer_options = writer_options.replace(allow_invalid_default_values=True)
+        self.writer_schema = Schema(self.metadata['avro.schema'], options=writer_options, allow_union_default_any_member=True)
         if reader_schema is None:
             self.schema = self.reader_schema = self.writer_schema
         else:

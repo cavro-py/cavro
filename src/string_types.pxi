@@ -74,6 +74,8 @@ cdef class BytesType(AvroType):
             return self # Decoding is identical for bytes / str
 
     cdef object resolve_default_value(self, object schema_default, str field):
+        if schema_default is NO_DEFAULT:
+            return NO_DEFAULT
         if self.options.string_types_default_unchanged:
             return schema_default
         if self.options.bytes_default_value_utf8:
@@ -211,7 +213,7 @@ cdef class FixedType(NamedType):
 
     cdef _json_format(self, value):
         value = self._convert_value(value)
-        return value.decode('utf8', errors=self.options.unicode_errors)
+        return value.decode('latin1', errors=self.options.unicode_errors)
 
     cdef _json_decode(self, value):
         cdef str sval = value
@@ -244,7 +246,7 @@ cdef class FixedType(NamedType):
         raise ValueError(f"Invalid length for fixed field: {length} != {self.size} (value: {value})")
 
     cdef CanonicalForm canonical_form(self, set created):
-        if self in created and not self.options.canonical_form_repeat_fixed_enum:
+        if self in created and not self.options.canonical_form_repeat_fixed:
             return CanonicalForm(f'"{self.type}"')
         created.add(self)
         return dict_to_canonical({
@@ -265,11 +267,14 @@ cdef class FixedType(NamedType):
         return self
 
     cdef object resolve_default_value(self, object schema_default, str field):
+        if schema_default is NO_DEFAULT:
+            return NO_DEFAULT
         if self.options.string_types_default_unchanged:
             return schema_default
         if self.options.bytes_default_value_utf8:
             try:
-                schema_default = schema_default.encode('utf-8').decode('latin-1')
+                schema_default = schema_default.encode('utf-8')
             except (AttributeError, TypeError, UnicodeEncodeError) as e:
                 raise TypeError(f"Default value {schema_default!r} is not valid for fixed field: {field}") from e
+            return schema_default
         return AvroType.resolve_default_value(self, schema_default, field)

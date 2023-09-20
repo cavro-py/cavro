@@ -87,8 +87,23 @@ cdef class Schema:
             return hasher.digest()
         return hasher
 
-    def find_type(self, str namespace, str name):
-        return self.named_types[resolve_namespaced_name(namespace, name)]
+    cpdef AvroType find_type(self, str namespace, str name, bint _raise=True):
+        cdef str resolved = resolve_namespaced_name(namespace, name)
+        cdef AvroType found = self.named_types.get(resolved)
+        if found is not None:
+            return found
+        found = self.options.externally_defined_types.get(resolved)
+        if found is not None:
+            self.register_type(namespace, name, found)
+            return found
+        found = self.named_types.get(name)
+        if found is not None:
+            return found
+        found = self.options.externally_defined_types.get(name)
+        if found is not None:
+            return found
+        if _raise:
+            raise UnknownType(f'Unknown type: {resolved!r}')
 
     def can_encode(self, value):
         fitness = self.type.get_value_fitness(value)

@@ -4,7 +4,7 @@ class Order(enum.Enum):
     DESC = 'descending'
     IGNORE = 'ignore'
 
-NO_DEFAULT = object()
+NO_DEFAULT = Sentinel('NO_DEFAULT')
 
 
 cdef class PlaceholderType(AvroType):
@@ -215,7 +215,13 @@ cdef class RecordField:
         if self.order != Order.ASC:
             schema['order'] = self.order.value
         if self.default_value not in {NO_DEFAULT, MISSING_VALUE}:
-            schema['default'] = self.type.json_format(self.default_value)
+            try:
+                schema['default'] = self.type.json_format(self.default_value)
+            except InvalidValue:
+                if self.type.options.allow_invalid_default_values:
+                    schema['default'] = self.default_value
+                else:
+                    raise
         return schema
 
 

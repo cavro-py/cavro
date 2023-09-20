@@ -40,7 +40,8 @@ _EMPTY_MP = MappingProxyType({})
 cdef class Options:
 
     fingerprint_returns_digest: bint = False
-    canonical_form_repeat_fixed_enum: bint = False
+    canonical_form_repeat_fixed: bint = False
+    canonical_form_repeat_enum: bint = False
 
     record_can_encode_dict: bint = True
     record_values_type_hint: bint = False
@@ -114,6 +115,7 @@ cdef class Options:
     invalid_value_includes_record_name: bint = False
     invalid_value_include_array_index: bint = True
     invalid_value_include_map_key: bint = True
+    allow_invalid_default_values: bint = False
 
     externally_defined_types: MappingProxyType = _EMPTY_MP
 
@@ -137,6 +139,29 @@ cdef class Options:
 
     cdef bint can_have_missing_values(self):
         return self.missing_values_can_be_empty_container or self.missing_values_can_be_null
+
+    def equals(self, Options other, ignore=()):
+        if not ignore:
+            return self == other
+        for field in dataclasses.fields(Options):
+            if field.name in ignore:
+                continue
+            self_val = getattr(self, field.name)
+            other_val = getattr(other, field.name)
+            if self_val != other_val:
+                return False
+        return True
+
+    def diff(self, Options other, ignore=()):
+        out = {}
+        for field in dataclasses.fields(Options):
+            if field.name in ignore:
+                continue
+            self_val = getattr(self, field.name)
+            other_val = getattr(other, field.name)
+            if self_val != other_val:
+                out[field.name] = (self_val, other_val)
+        return out
 
 
 DEFAULT_OPTIONS = Options()
