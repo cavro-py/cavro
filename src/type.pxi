@@ -108,7 +108,7 @@ cdef class AvroType:
 
     cpdef object _convert_value(self, object value):
         raise NotImplementedError(
-            f"{type(self).__name__} does not implement convert_value")
+            f"{type(self).__name__} does not implement _convert_value")
 
     cpdef object convert_value(self, object value, check_value=False):
         if check_value:
@@ -118,7 +118,7 @@ cdef class AvroType:
     cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
         cdef ValueAdapter adapter
 
-        if isinstance(value, tuple) and len(value) == 2 and not isinstance(self, ArrayType):
+        if self.options.allow_tuple_notation and  isinstance(value, tuple) and len(value) == 2 and not isinstance(self, ArrayType):
             type_name, inner_value = value
             if type_name == self.type:
                 try:
@@ -148,7 +148,7 @@ cdef class AvroType:
     cdef int get_value_fitness(self, value) except -1:
         cdef ValueAdapter adapter
         
-        if isinstance(value, tuple) and len(value) == 2 and not isinstance(self, ArrayType):
+        if self.options.allow_tuple_notation and  isinstance(value, tuple) and len(value) == 2 and not isinstance(self, ArrayType):
             type_name, inner_value = value
             if type_name == self.type:
                 inner_fitness = self._get_value_fitness(inner_value)
@@ -175,12 +175,34 @@ cdef class AvroType:
             raise ValueError(f"'{value}' not valid for {type(self).__name__}")
 
     cdef json_format(self, value):
+        cdef ValueAdapter adapter
+
+        if self.options.allow_tuple_notation and  isinstance(value, tuple) and len(value) == 2 and not isinstance(self, ArrayType):
+            type_name, inner_value = value
+            if type_name == self.type:
+                try:
+                    return self.json_format(inner_value)
+                except Exception as e:
+                    pass
+
+        for adapter in self.value_adapters:
+            value = adapter.encode_value(value)
+        return self._json_format(value)
+
+    cdef _json_format(self, value):
         raise NotImplementedError(
-            f"{type(self).__name__} does not implement json_format")
+            f"{type(self).__name__} does not implement _json_format")
 
     cdef json_decode(self, value):
+        cdef ValueAdapter adapter
+        value = self._json_decode(value)
+        for adapter in reversed(self.value_adapters):
+            value = adapter.decode_value(value)
+        return value
+
+    cdef _json_decode(self, value):
         raise NotImplementedError(
-            f"{type(self).__name__} does not implement json_decode")
+            f"{type(self).__name__} does not implement _json_decode")
 
     cdef CanonicalForm canonical_form(self, set created):
         raise NotImplementedError(
@@ -219,7 +241,7 @@ cdef class AvroType:
         if promote_error is not None:
             if allow_deferrals:
                 cloned = writer.copy()
-                cloned.value_adapters = (CannotPromote(cloned, writer),) + cloned.value_adapters
+                cloned.value_adapters = (CannotPromote(self, writer, promote_error.extra),) + cloned.value_adapters
                 return cloned
             raise promote_error
         return promoted
@@ -282,7 +304,6 @@ cdef class NamedType(AvroType):
     def __init__(self, schema, source, parse_namespace):
         cdef Schema schema_t = schema
         cdef str effective_namespace = None
-        super().__init__(schema, source, parse_namespace)
         cdef str name = source['name']
         if '.' in name:
             effective_namespace, name = name.rsplit('.', 1)
@@ -320,16 +341,27 @@ cdef class NamedType(AvroType):
 
         alias_val = source.get('aliases', [])
         if not isinstance(alias_val, (list, tuple, set)):
-            if self.options.allow_aliases_to_be_string:
+            if schema.options.allow_aliases_to_be_string:
                 alias_val = [alias_val]
             else:
                 raise ValueError(f"Aliases must be a list/tuple/set, got: {repr(alias_val)}")
         self.aliases = frozenset(alias_val)
+        super().__init__(schema, source, parse_namespace)
         schema_t.register_type(self.effective_namespace, self.name, self)
 
     property type:
         def __get__(self):
             return resolve_namespaced_name(self.effective_namespace, self.name)
+
+    cdef bint name_matches(self, NamedType other):
+        if self.name == other.name:
+            return True
+        if other.name in self.aliases:
+            return True
+        # Let's get creative
+        if other.effective_namespace and other.type in self.aliases:
+            return True
+        return False
 
     cdef frozenset get_namespaced_aliases(self):
         cdef frozenset all_names = self.aliases | {self.name}

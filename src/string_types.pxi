@@ -45,11 +45,11 @@ cdef class BytesType(AvroType):
             return FIT_NONE
         return MAX_FIT
 
-    cdef json_format(self, value):
+    cdef _json_format(self, value):
         value = self.convert_value(value)
         return value.decode('latin-1')
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
         cdef str sval = value
         return sval.encode('latin-1')
 
@@ -108,7 +108,7 @@ cdef class StringType(AvroType):
 
     cdef _binary_buffer_decode(self, Reader buffer):
         cdef uint64_t length = zigzag_decode_long(buffer)
-        return buffer.read_bytes(length).decode('utf-8')
+        return buffer.read_bytes(length).decode('utf-8', errors=self.options.unicode_errors)
 
     cdef int _get_value_fitness(self, value) except -1:
         if isinstance(value, str):
@@ -119,10 +119,10 @@ cdef class StringType(AvroType):
             return FIT_POOR
         return FIT_NONE
 
-    cdef json_format(self, value):
+    cdef _json_format(self, value):
         return self._convert_value(value)
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
         cdef str sval = value
         return sval
 
@@ -132,7 +132,7 @@ cdef class StringType(AvroType):
         if not self.options.coerce_values_to_str:
             raise InvalidValue(value, self)
         if isinstance(value, bytes):
-            return value.decode()
+            return value.decode(errors=self.options.unicode_errors)
         return str(value)
 
     cdef CanonicalForm canonical_form(self, set created):
@@ -209,11 +209,11 @@ cdef class FixedType(NamedType):
             return FIT_OK
         return FIT_NONE
 
-    cdef json_format(self, value):
+    cdef _json_format(self, value):
         value = self._convert_value(value)
-        return value.decode('utf8')
+        return value.decode('utf8', errors=self.options.unicode_errors)
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
         cdef str sval = value
         cdef bytes encoded = sval.encode('latin1')
         if len(encoded) != self.size:
@@ -244,7 +244,7 @@ cdef class FixedType(NamedType):
         raise ValueError(f"Invalid length for fixed field: {length} != {self.size} (value: {value})")
 
     cdef CanonicalForm canonical_form(self, set created):
-        if self in created and not self.options.canonical_form_repeat_fixed:
+        if self in created and not self.options.canonical_form_repeat_fixed_enum:
             return CanonicalForm(f'"{self.type}"')
         created.add(self)
         return dict_to_canonical({
@@ -258,7 +258,9 @@ cdef class FixedType(NamedType):
         if not isinstance(writer, FixedType):
             return
         writer_fixed = writer
-        if writer_fixed.type not in self.get_namespaced_aliases() or writer_fixed.size != self.size:
+        if not self.name_matches(writer_fixed):
+            return
+        if writer_fixed.size != self.size:
             return
         return self
 

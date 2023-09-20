@@ -1,6 +1,7 @@
 from libc.float cimport FLT_MAX, DBL_MAX
 from cpython cimport bool as py_bool
-from numpy import bool_, integer
+from numpy import bool_, integer, float16 as np_f16, float32 as np_f32, float64 as np_f64
+import numpy as np
 
 from math import isnan, isinf
 
@@ -44,10 +45,10 @@ cdef class BoolType(AvroType):
             return py_bool(value)
         raise InvalidValue(value, self)
 
-    cdef json_format(self, value):
+    cdef _json_format(self, value):
         return self._convert_value(value)
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
         cdef py_bool decoded = value
         return decoded
 
@@ -77,6 +78,8 @@ cdef class IntType(AvroType):
 
     cdef int _get_value_fitness(self, value) except -1:
         max_fit = FIT_EXACT
+        if isinstance(value, (bool_, py_bool)):
+            return FIT_POOR if self.options.coerce_values_to_int else FIT_NONE
         if not isinstance(value, (int, integer)):
             if not self.options.coerce_values_to_int:
                 return FIT_NONE
@@ -93,6 +96,8 @@ cdef class IntType(AvroType):
         return max_fit
         
     cpdef object _convert_value(self, object value):
+        if not self.options.coerce_values_to_int and isinstance(value, (bool_, py_bool)):
+            raise ValueError(f'{value} not valid for long')
         if not isinstance(value, int):
             if self.options.coerce_values_to_int or isinstance(value, integer):
                 value = int(value)
@@ -108,10 +113,10 @@ cdef class IntType(AvroType):
             return value
         raise OverflowError(f"Value {value} out of range for int")
 
-    cdef json_format(self, value):
+    cdef _json_format(self, value):
         return self._convert_value(value)
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
         if isinstance(value, (float, py_bool, bool_)) or not isinstance(value, int):
             raise InvalidValue(value, self)
         if value < INT32_MIN or value > INT32_MAX:
@@ -144,6 +149,8 @@ cdef class LongType(AvroType):
 
     cdef int _get_value_fitness(self, value) except -1:
         max_fit = FIT_EXACT
+        if isinstance(value, (bool_, py_bool)):
+            return FIT_POOR if self.options.coerce_values_to_int else FIT_NONE
         if not isinstance(value, (int, integer)):
             if not self.options.coerce_values_to_int:
                 return FIT_NONE
@@ -160,6 +167,8 @@ cdef class LongType(AvroType):
         return max_fit
         
     cpdef object _convert_value(self, object value):
+        if not self.options.coerce_values_to_int and isinstance(value, (bool_, py_bool)):
+            raise ValueError(f'{value} not valid for long')
         if not isinstance(value, int):
             if self.options.coerce_values_to_int or isinstance(value, integer):
                 value = int(value)
@@ -178,7 +187,7 @@ cdef class LongType(AvroType):
     cdef json_format(self, object value):
         return self._convert_value(value)
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
         if isinstance(value, (float, py_bool, bool_)) or not isinstance(value, int):
             raise InvalidValue(value, self)
         if value < INT64_MIN or value > INT64_MAX:
@@ -217,7 +226,7 @@ cdef class FloatType(AvroType):
 
     cdef int _get_value_fitness(self, value) except -1:
         max_fit = FIT_EXACT
-        if not isinstance(value, float):
+        if not isinstance(value, (float, np_f16, np_f32)):
             max_fit = FIT_OK
             if isinstance(value, (int, integer)) and self.options.coerce_int_to_float and not isinstance(value, (py_bool, bool_)):
                 try:
@@ -236,12 +245,16 @@ cdef class FloatType(AvroType):
         if self.options.truncate_float:
             return max_fit
 
-        if value >= -FLT_MAX and value <= FLT_MAX or isnan(value) or isinf(value):
+        if (value >= -FLT_MAX and value <= FLT_MAX) or isnan(value) or isinf(value):
             return max_fit
         return FIT_NONE
 
     cpdef object _convert_value(self, object value):
-        if not isinstance(value, float):
+        if isinstance(value, float):
+            pass
+        elif isinstance(value, (np_f16, np_f32)):
+            value = float(value)
+        else:
             if isinstance(value, (int, integer)) and self.options.coerce_int_to_float and not isinstance(value, (py_bool, bool_)):
                 value = float(value)
             else:
@@ -274,15 +287,17 @@ cdef class FloatType(AvroType):
             return value
         raise OverflowError(f"Value {value} out of range for float")
 
-    cdef json_format(self, value):
+    cdef _json_format(self, value):
         return self._convert_value(value)
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
         if isinstance(value, (py_bool, bool_)):
             raise InvalidValue(value, self)
+        if value in ('nan', 'inf', '-inf'):
+            return float(value)
         if not isinstance(value, (float, int)):
             raise InvalidValue(value, self)
-        if value < -FLT_MAX or value > FLT_MAX:
+        if (value < -FLT_MAX or value > FLT_MAX) and not isnan(value) and not isinf(value):
             raise OverflowError(f"Value {value} out of range for float")
         return value
 
@@ -320,7 +335,7 @@ cdef class DoubleType(AvroType):
 
     cdef int _get_value_fitness(self, value) except -1:
         max_fit = FIT_EXACT
-        if not isinstance(value, float):
+        if not isinstance(value, (float, np_f16, np_f32, np_f64)):
             max_fit = FIT_OK
             if isinstance(value, (int, integer)) and self.options.coerce_int_to_float and not isinstance(value, (py_bool, bool_)):
                 try:
@@ -339,7 +354,11 @@ cdef class DoubleType(AvroType):
         return max_fit
 
     cpdef object _convert_value(self, object value):
-        if not isinstance(value, float):
+        if isinstance(value, float):
+            pass
+        elif isinstance(value, (np_f16, np_f32, np_f64)):
+            value = float(value)
+        else:
             if isinstance(value, (int, integer)) and self.options.coerce_int_to_float and not isinstance(value, (py_bool, bool_)):
                 value = float(value)
             else:
@@ -362,10 +381,10 @@ cdef class DoubleType(AvroType):
         
         return value
 
-    cdef json_format(self, value):
+    cdef _json_format(self, value):
         return self._convert_value(value)
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
         if isinstance(value, (py_bool, bool_)):
             raise InvalidValue(value, self)
         if not isinstance(value, (float, int)):

@@ -38,7 +38,7 @@ import pytest
     ]
 )
 def test_canonical_form(schema, expected):
-    schema_obj = cavro.Schema(schema, cavro.PERMISSIVE_OPTIONS.replace(canonical_form_repeat_fixed=False))
+    schema_obj = cavro.Schema(schema, cavro.PERMISSIVE_OPTIONS.replace(canonical_form_repeat_fixed_enum=False))
     assert schema_obj.canonical_form == expected
 
 
@@ -55,7 +55,7 @@ def test_default_canonical_form_repeats_fixed_enum():
             {'name': 'e', 'type': {'type': 'Foo'}},
         ],
     },
-    canonical_form_repeat_fixed=True)
+    canonical_form_repeat_fixed_enum=True)
     assert schema.canonical_form == '''{
         "name": "Foo",
         "type": "record",
@@ -76,23 +76,8 @@ def test_default_canonical_form_repeats_fixed_enum():
                     "size": 8
                 }
             },
-            {
-                "name": "c",
-                "type": {
-                    "name": "X",
-                    "type": "enum",
-                    "symbols": [
-                        "a"
-                    ]
-                }
-            },
-            {
-                "name": "d",
-                "type": "X"
-            },
-            {
-                "name": "e",
-                "type": "Foo"
-            }
+            {"name": "c", "type": {"name": "X", "type": "enum", "symbols": ["a"]}},
+            {"name": "d", "type": {"name": "X", "type": "enum", "symbols": ["a"]}},
+            {"name": "e", "type": "Foo"}
         ]
     }'''.replace(' ', '').replace('\n', '')

@@ -15,7 +15,7 @@ cdef class PlaceholderType(AvroType):
     def __init__(self, options, default_value):
         schema = Schema('"null"', options)
         AvroType.__init__(self, schema, None, None)
-        self.default_value = default_value
+        self.default_value = None if default_value is MISSING_VALUE else default_value
 
     cdef dict _extract_metadata(self, source):
         return {}
@@ -35,10 +35,10 @@ cdef class PlaceholderType(AvroType):
     cdef int _get_value_fitness(self, value) except -1:
         return FIT_NONE
 
-    cdef json_format(self, value):
+    cdef _json_format(self, value):
         raise NotImplementedError("Placeholder types cannot be encoded")
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
         return self.default_value
 
     cpdef object _convert_value(self, object value):
@@ -51,6 +51,19 @@ cdef class PlaceholderType(AvroType):
 cdef list record_data_from_dict(RecordType record, dict data):
     cdef list field_data = [None] * len(record.fields)
     cdef Py_ssize_t index = 0
+    cdef Options options = record.options
+
+    if not options.record_allow_extra_fields:
+        extra_fields = data.keys() - record.field_dict.keys()
+        if extra_fields:
+            extra_field, *_ = extra_fields
+            raise InvalidValue('...', record, (extra_field, ))
+    if not options.record_encode_use_defaults:
+        missing_fields = record.field_dict.keys() - data.keys()
+        if missing_fields:
+            missing_field, *_ = missing_fields
+            raise InvalidValue('<missing>', record, (missing_field, ))
+
     for field in record.fields:
         value = data.get(field.name, field.default_value)
         if value is NO_DEFAULT:
@@ -142,6 +155,7 @@ cdef class Record:
 @cython.final
 cdef class RecordField:
     cdef readonly str name
+    cdef readonly str writer_name
     cdef readonly str doc
     cdef readonly AvroType type
     cdef readonly object default_value
@@ -151,6 +165,7 @@ cdef class RecordField:
     def __init__(self, schema, source, namespace):
         cdef AvroType sub_type
         self.name = source['name']
+        self.writer_name = self.name
         self.doc = source.get('doc', '')
         self.type = AvroType.for_source(schema, source['type'], namespace)
         self.default_value = self.type.resolve_default_value(source.get('default', NO_DEFAULT), self.name)
@@ -164,6 +179,7 @@ cdef class RecordField:
         cdef RecordField cloned
         cloned = RecordField.__new__(RecordField)
         cloned.name = reader_name
+        cloned.writer_name = self.writer_name
         if reader_type is not None: 
             cloned.type = reader_type.for_writer(self.type)
         else:
@@ -246,9 +262,12 @@ cdef class RecordType(NamedType):
     cdef dict field_dict
     cdef readonly type record
 
+    cdef bint _setting_up
+
     def __init__(self, schema, source, namespace):
-        NamedType.__init__(self, schema, source, namespace)
+        self._setting_up = True
         self.doc = source.get('doc', '')
+        NamedType.__init__(self, schema, source, namespace)
         self.fields = tuple(
             RecordField(schema, f, self.effective_namespace) for f in source['fields']
         )
@@ -260,6 +279,16 @@ cdef class RecordType(NamedType):
 
         n_fields = len(self.fields)
         self.record = make_record_class(self)
+
+        self._setting_up = False
+        logical = self._make_logical(schema, source)
+        if logical is not None:
+            self.value_adapters = self.value_adapters + (logical,)
+
+    cdef _make_logical(self, schema, source):
+        if self._setting_up:
+            return
+        return AvroType._make_logical(self, schema, source)
 
     cpdef AvroType copy(self):
         cdef RecordType new_inst = self.clone_base()
@@ -325,7 +354,10 @@ cdef class RecordType(NamedType):
             try:
                 field.type.binary_buffer_encode(buffer, field_value)
             except InvalidValue as e:
-                e.schema_path = (field.name, ) + e.schema_path
+                prefix = (field.name, )
+                if self.options.invalid_value_includes_record_name:
+                    prefix = (self.type, ) + prefix
+                e.schema_path = prefix + e.schema_path
                 raise
 
     cdef _binary_buffer_decode_record(self, Reader buffer):
@@ -380,7 +412,7 @@ cdef class RecordType(NamedType):
                 return FIT_NONE
             return level
 
-    cdef json_format(self, value):
+    cdef _json_format(self, value):
         cdef Record record = self._convert_value(value)
         cdef AvroType field_type
         out = {}
@@ -396,10 +428,14 @@ cdef class RecordType(NamedType):
         cdef Py_ssize_t index = 0
 
         for field in self.fields:
-            field_value = value.get(field.name, field.default_value)
-            if field_value is NO_DEFAULT:
-                raise ValueError(f"required field '{field.name}' missing")
-            data[index] = field.type.json_decode(field_value)
+            field_value = value.get(field.writer_name, MISSING_VALUE)
+            if field_value is MISSING_VALUE:
+                if field.default_value is NO_DEFAULT:
+                    raise ValueError(f"required field '{field.name}' missing")
+                field_value = field.default_value
+            else:
+                field_value = field.type.json_decode(field_value)
+            data[index] = field_value
             index += 1
         rec = Record.__new__(self.record)
         rec.data = data
@@ -410,13 +446,17 @@ cdef class RecordType(NamedType):
         cdef RecordField field
 
         for field in self.fields:
-            field_value = value.get(field.name, field.default_value)
-            if field_value is NO_DEFAULT:
-                raise ValueError(f"required field '{field.name}' missing")
-            data[field.name] = field.type.json_decode(field_value)
+            field_value = value.get(field.writer_name, MISSING_VALUE)
+            if field_value is MISSING_VALUE:
+                if field.default_value is NO_DEFAULT:
+                    raise ValueError(f"required field '{field.name}' missing")
+                field_value = field.default_value
+            else:
+                field_value = field.type.json_decode(field_value)
+            data[field.name] = field_value
         return data
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
         if self.options.record_decodes_to_dict:
             return self.json_decode_dict(value)
         return self.json_decode_record(value)
@@ -445,7 +485,7 @@ cdef class RecordType(NamedType):
         if not isinstance(writer, RecordType):
             return
         writer_rec = writer
-        if writer_rec.type not in self.get_namespaced_aliases():
+        if not self.name_matches(writer_rec):
             return
         # This allows us to go from the field name to the index in the reader record
         reader_field_idx = {}
@@ -466,7 +506,7 @@ cdef class RecordType(NamedType):
         out_fields = []
         decoded_reader_fields = set()
 
-        # Todo, only use promoting type if the field order is different
+        # Todo, only use promoting type if the field order/naming is different
         for field in  writer_rec.fields:
             if field.name in reader_field_idx:
                 reader_index = reader_field_idx[field.name]
@@ -487,6 +527,7 @@ cdef class RecordType(NamedType):
         extra_reader_fields = reader_fields.keys() - decoded_reader_fields
         for reader_index in extra_reader_fields:
             field = reader_fields[reader_index]
+
             if field.default_value is NO_DEFAULT:
                 raise CannotPromoteError(self, writer, f"required field '{field.name}' missing")
             out_decode_indexes.append(reader_index)

@@ -142,14 +142,19 @@ cdef class UnionType(AvroType):
                 return level
         return level
 
-    cdef json_format(self, value):
+    cdef _json_format(self, value):
         cdef size_t type_index = self.resolve_from_value(value)
         cdef AvroType union_type = self.union_types[type_index]
         if isinstance(union_type, NullType):
             return None
-        return {union_type.type: union_type.json_format(value)}
+        if self.options.union_json_encodes_type_name:
+            return {union_type.type: union_type.json_format(value)}
+        return union_type.json_format(value)
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
+        if value is None or value is MISSING_VALUE:
+            value = {'null': None}
+
         cdef dict value_dict = value
         if len(value) > 1:
             raise ValueError(f"Value {value} is not a valid union value (expect exactly one item)")
@@ -226,4 +231,14 @@ cdef class UnionType(AvroType):
         try:
             return sub_type.resolve_default_value(schema_default, field)
         except TypeError as e:
+            if self.options.allow_union_default_any_member:
+                try:
+                    return self.json_decode(schema_default)
+                except:
+                    pass
+                for sub_type in self.union_types[1:]:
+                    try:
+                        return sub_type.resolve_default_value(schema_default, field)
+                    except TypeError:
+                        pass
             raise TypeError(f"Default value {schema_default!r} for field {field} is not valid for union with first type: {sub_type.type_name}") from e

@@ -28,10 +28,10 @@ cdef class NullType(AvroType):
             return FIT_OK
         return FIT_NONE
 
-    cdef json_format(self, value):
+    cdef _json_format(self, value):
         return None
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
         if value is not None:
             raise ValueError(f'Expected null, got {repr(value)}')
         return None
@@ -47,6 +47,6 @@ cdef class NullType(AvroType):
             return True
 
     cdef object resolve_default_value(self, object schema_default, str field):
-        if schema_default is NO_DEFAULT:  # Null fields always have default NULL
+        if self.options.missing_values_can_be_null and schema_default is NO_DEFAULT:
             return MISSING_VALUE 
         return AvroType.resolve_default_value(self, schema_default, field)

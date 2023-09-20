@@ -34,19 +34,22 @@ class UnionDecodeOption(enum.Enum):
     TYPE_TUPLE_IF_RECORD = 3
     TYPE_TUPLE_ALWAYS = 4
 
+_EMPTY_MP = MappingProxyType({})
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 cdef class Options:
 
     fingerprint_returns_digest: bint = False
-    canonical_form_repeat_fixed: bint = False
+    canonical_form_repeat_fixed_enum: bint = False
 
     record_can_encode_dict: bint = True
     record_values_type_hint: bint = False
     record_decodes_to_dict: bint = False
     record_allow_extra_fields: bint = True
     record_encode_use_defaults: bint = True
+    allow_tuple_notation: bint = False
     union_decodes_to: UnionDecodeOption = UnionDecodeOption.RAW_VALUES
+    union_json_encodes_type_name: bint = True
 
     allow_primitive_name_collision: bint = False
     allow_primitive_names_in_namespaces: bint = False
@@ -66,6 +69,7 @@ cdef class Options:
     allow_empty_unions: bint = False
     allow_nested_unions: bint = False
     allow_duplicate_union_types: bint = False
+    allow_union_default_any_member: bint = False
     allow_aliases_to_be_string: bint = False
 
     coerce_values_to_int: bint = False
@@ -102,12 +106,28 @@ cdef class Options:
     raise_on_invalid_logical: bint = False
     inline_namespaces: bint = False
     expand_types_in_schema: bint = False
+    unicode_errors: str = 'strict'
 
     container_fill_blocks: bint = False
     defer_schema_promotion_errors: bint = False
 
+    invalid_value_includes_record_name: bint = False
+    invalid_value_include_array_index: bint = True
+    invalid_value_include_map_key: bint = True
+
+    externally_defined_types: MappingProxyType = _EMPTY_MP
+
     def replace(self, **changes):
         return dataclasses.replace(self, **changes)
+
+    def with_logical_types(self, *logical_types):
+        new_types = logical_types + self.logical_types
+        return self.replace(logical_types=new_types)
+
+    def with_external_types(self, named_types):
+        new_types = dict(self.externally_defined_types)
+        new_types.update(named_types)
+        return self.replace(externally_defined_types=new_types)
 
     @property
     def name_pattern(self):
@@ -148,4 +168,7 @@ PERMISSIVE_OPTIONS = Options(
     named_type_names_must_be_unique=False,
     missing_values_can_be_null=True,
     missing_values_can_be_empty_container=True,
+    allow_tuple_notation=True,
+    allow_union_default_any_member=True,
+    unicode_errors='replace',
 )

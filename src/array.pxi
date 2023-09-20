@@ -36,7 +36,8 @@ cdef class ArrayType(AvroType):
                 try:
                     self.item_type.binary_buffer_encode(buffer, item)
                 except InvalidValue as e:
-                    e.schema_path = (idx, ) + e.schema_path
+                    if self.options.invalid_value_include_array_index:
+                        e.schema_path = (idx, ) + e.schema_path
                     raise
                 idx += 1
         zigzag_encode_long(buffer, 0)
@@ -54,10 +55,10 @@ cdef class ArrayType(AvroType):
                 out.append(value)
                 length -= 1
 
-    cdef json_format(self, value):
+    cdef _json_format(self, value):
         return [self.item_type.json_format(item) for item in value]
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
         return [self.item_type.json_decode(item) for item in value]
 
     cdef int _get_value_fitness(self, value) except -1:
@@ -80,11 +81,11 @@ cdef class ArrayType(AvroType):
                 break
         return level
 
-    cdef dict _make_converted_list(self, value):
+    cdef list _make_converted_list(self, value):
         cdef AvroType item_type = self.item_type
         cdef list out = []
         for item in value:
-            out.append(item_type._convert_value(item))
+            out.append(item_type.convert_value(item))
         return out
 
     cpdef object convert_value(self, object value, check_value=True):
@@ -119,5 +120,5 @@ cdef class ArrayType(AvroType):
                 return cloned
 
     cdef bint accepts_missing_value(self):
-        if self.options .missing_values_can_be_empty_container:
+        if self.options.missing_values_can_be_empty_container:
             return True

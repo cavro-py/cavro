@@ -19,13 +19,26 @@ cdef class LogicalType(ValueAdapter):
     logical_name = NotImplemented
     underlying_types = NotImplemented
 
-    @classmethod
-    def for_type(cls, underlying: AvroType):
-        for underlying_type in cls.underlying_types:
+    @class_inst_method
+    def for_type(inst, cls, underlying: AvroType):
+        cdef object ob = inst
+        if inst is None:
+            ob = cls
+
+        for underlying_type in ob.underlying_types:
             if isinstance(underlying, underlying_type):
-                inst = cls._for_type(underlying)
+                inst = ob._for_type(underlying)
                 if inst is not None:
                     return inst
+
+
+cdef class CustomLogicalType(LogicalType):
+
+    cdef encode_value(self, value):
+        return self.custom_encode_value(value)
+
+    cdef decode_value(self, value):
+        return self.custom_decode_value(value)
 
 
 cdef class DecimalType(LogicalType):

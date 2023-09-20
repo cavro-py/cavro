@@ -33,6 +33,7 @@ class CannotPromoteError(CavroException):
     def __init__(self, reader_type, writer_type, extra=None):
         self.reader_type = reader_type
         self.writer_type = writer_type
+        self.extra = extra
         msg = f"Cannot promote {reader_type.get_schema()} to {writer_type.get_schema()}"
         if extra:
             msg += ': ' + extra

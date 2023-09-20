@@ -1,5 +1,4 @@
 
-@cython.final
 cdef class EnumType(NamedType):
     type_name = 'enum'
 
@@ -44,7 +43,7 @@ cdef class EnumType(NamedType):
         self.doc = source.get('doc', '')
 
     cpdef AvroType copy(self):
-        cdef RecordType new_inst = self.clone_base()
+        cdef EnumType new_inst = self.clone_base()
         new_inst.symbols = self.symbols
         new_inst.symbol_indexes = self.symbol_indexes
         new_inst.default_value = self.default_value
@@ -86,18 +85,18 @@ cdef class EnumType(NamedType):
         # if value is valid for type, then it needs no conversion
         return value
 
-    cdef json_format(self, value):
+    cdef _json_format(self, value):
         if value not in self.symbol_indexes:
             raise KeyError(f"'{value}' invalid for enum")
         return value
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
         if value not in self.symbol_indexes:
             raise ValueError(f"'{value}' invalid for enum")
         return value
 
     cdef CanonicalForm canonical_form(self, set created):
-        if self in created:
+        if self in created and not self.options.canonical_form_repeat_fixed_enum:
             return CanonicalForm('"' + self.type + '"')
         created.add(self)
         return dict_to_canonical({
@@ -110,18 +109,19 @@ cdef class EnumType(NamedType):
         if not isinstance(writer, EnumType):
             return
         cdef EnumType writer_enum = writer
-        if writer_enum.type not in self.get_namespaced_aliases():
+        if not self.name_matches(writer_enum):
             return
         reader_symbols = set(self.symbols)
         writer_symbols = set(writer_enum.symbols)
         writer_extra_symbols = writer_symbols - reader_symbols
         if not writer_extra_symbols:  # Reader knows about all possible symbols
             return self
-        if self.default_value is NO_DEFAULT:
-            raise CannotPromoteError(self, writer, f"reader has no default value, but writer has extra symbols: {', '.join(writer_extra_symbols)}")
         
-        cdef EnumType new_type = writer.clone_base()
+        cdef PromotingEnumType new_type = writer.clone_base(PromotingEnumType)
+        new_type.reader_type = self
+        new_type.writer_type = writer_enum
         new_type.symbols = tuple(s if s in reader_symbols else self.default_value for s in writer.symbols)
+        new_type.unknown_symbols = writer_extra_symbols
         new_type.symbol_indexes = writer_enum.symbol_indexes
         return new_type
 
@@ -131,5 +131,21 @@ cdef class EnumType(NamedType):
         return AvroType.resolve_default_value(self, schema_default, field)
 
 
-        
-            
+cdef class PromotingEnumType(EnumType):
+    cdef readonly set unknown_symbols
+    cdef readonly EnumType reader_type
+    cdef readonly EnumType writer_type
+
+    cdef _json_decode(self, value):
+        value = EnumType._json_decode(self, value)
+        if value in self.unknown_symbols:
+            if self.defaul_value is NO_DEFAULT:
+                raise CannotPromote(self.reader_type, self.writer_type, f"'{value}' invalid for enum")
+            return self.default_value
+        return value
+
+    cdef _binary_buffer_decode(self, Reader buffer):
+        value = EnumType._binary_buffer_decode(self, buffer)
+        if value is NO_DEFAULT:
+            raise CannotPromoteError(self.reader_type, self.writer_type, f"Unknown value for enum")
+        return value

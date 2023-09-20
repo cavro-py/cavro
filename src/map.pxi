@@ -38,7 +38,8 @@ cdef class MapType(AvroType):
                 try:
                     self.value_type.binary_buffer_encode(buffer, item_value)
                 except InvalidValue as e:
-                    e.schema_path = (key, ) + e.schema_path
+                    if self.options.invalid_value_include_map_key:
+                        e.schema_path = (key, ) + e.schema_path
                     raise
             zigzag_encode_long(buffer, 0)
         return 0
@@ -57,7 +58,7 @@ cdef class MapType(AvroType):
                 out[key] = value
                 length -= 1
 
-    cdef json_format(self, value):
+    cdef _json_format(self, value):
         cdef str key
         cdef dict out = {}
         if hasattr(value, 'items'):
@@ -66,7 +67,7 @@ cdef class MapType(AvroType):
             out[key] = self.value_type.json_format(item_value)
         return out
 
-    cdef json_decode(self, value):
+    cdef _json_decode(self, value):
         cdef dict inp = value
         cdef dict out = {}
         cdef str key

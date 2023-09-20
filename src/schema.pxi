@@ -24,7 +24,7 @@ cdef class Schema:
 
     cdef readonly dict logical_types
 
-    def __init__(self, source, Options options=DEFAULT_OPTIONS, named_types=None, parse_json=True, **extra_options):
+    def __init__(self, source, Options options=DEFAULT_OPTIONS, named_types=None, parse_json=True, _type=None, **extra_options):
         if isinstance(source, (str, bytes)) and parse_json:
             source = json.loads(source)
         self.source = source
@@ -33,7 +33,7 @@ cdef class Schema:
         self.options = options
         self.named_types = {} if named_types is None else named_types
         self.logical_types = self._make_logical_types(options)
-        self.type = AvroType.for_schema(self)
+        self.type = AvroType.for_schema(self) if _type is None else _type
 
     @class_inst_method
     def wrap_type(inst, cls, AvroType avro_type, Options options=None):
@@ -43,8 +43,7 @@ cdef class Schema:
         if options is None:
             options = DEFAULT_OPTIONS
         source = avro_type.get_schema(set())
-        cdef Schema new_inst = cls(source, options, parse_json=False)
-        new_inst.type = avro_type
+        cdef Schema new_inst = cls(source, options, parse_json=False, _type=avro_type)
         return new_inst
 
     def _make_logical_types(self, options):
