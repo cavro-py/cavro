@@ -35,7 +35,23 @@
             margin: auto;
             display: block;
         }
+
+        table {
+            border: 1px solid #666;
+            border-collapse: collapse;
+        }
+        table th{
+            background-color: #666;
+            color: white;
+            font-weight: bold;;
+            padding: 1px 5px;
+        }
+        
+        table td {
+            padding: 1px 5px;
+        }
     </style>
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js" charset="utf-8"></script>
 </head>
 
 <body>
@@ -51,7 +67,10 @@
         {{ classes[test].__doc__ or "" }}.
         Best of {{ classes[test].NUM_RUNS }} runs.
     </p>
-    {{ make_commit_graph(res) }}
+    {{ make_commit_graph(res, 'min', 'Absolute Time') }}
+    {{ make_commit_graph(res, 'normalized', 'Relative Time (compared to avro)') }}
+    <p>Latest Run Results:</p>
+    {{ results_table(res, latest_commit)}}
 </section>
 {% endfor %}
 

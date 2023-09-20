@@ -1,22 +1,21 @@
-import os
 import base64
-from datetime import datetime
 import json
-import jinja2
-from collections import defaultdict
+import operator
+import os
 import sys
+from collections import defaultdict
+from datetime import datetime
+from functools import reduce
 from io import StringIO
-
-import pygit2
-import github
-import matplotlib
-matplotlib.use('SVG')
-import matplotlib.pyplot as plt
-plt.rcParams['svg.fonttype'] = 'none'
-plt.rcParams['font.family'] = 'Verdana'
-plt.rcParams['font.size'] = 9
-
 from itertools import chain
+
+import github
+import jinja2
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import plotly.io
+import pygit2
 
 from benchmark.main import ALL_TEST_CLASSES
 
@@ -25,6 +24,7 @@ def get_results():
     repo = pygit2.Repository('.')
     perf_refs = {}
     for ref in repo.references:
+        print(ref)
         if ref.startswith('refs/perf'):
             blob_id = repo.references[ref].target
             perf_data = repo.get(blob_id).data
@@ -53,53 +53,62 @@ def format_results(results):
             })
     return formatted
 
-def make_commit_graph(results):
-    plt.figure(figsize=[10, 5])
+
+def convert_item(item):
+    new_items = []
+    base = {k: v for k, v in item.items() if k != 'results'}
+    res = item.get('results', {})
+    for lib, data in res.items():
+        lib_base = base.copy()
+        lib_base['lib'] = lib
+        lib_base.update(data)
+        new_items.append(lib_base)
+    return new_items
+
+def results_table(results, commit):
     results = reversed(results)
     results = [r for r in results if r['results']]
-    all_libs = sorted(set(chain(*(r['results'].keys() for r in results))))
-    lib_times = defaultdict(list)
-    hashes = []
-    max_val = 0
-    for result in results:
-        hashes.append(result['commit'][:5])
-        for lib in all_libs:
-            val = result['results'].get(lib, {}).get('min')
-            lib_times[lib].append(val)
-            if val is not None:
-                max_val = max(max_val, val)
+    converted = [c for r in results for c in convert_item(r)]
+    r2 = pd.DataFrame(converted)
+    last_run = r2['run_time'].max()
+    r2 = r2.query('run_time == @last_run')
+    r2 = r2.drop(columns=['run_time', 'commit_time', 'commit']).set_index('lib')
+    r2 = r2.rename({'min': 'min (s)', 'std': 'std (s)', 'normalized': 'normalized (avro=1)', 'timings': 'timings (s)'}, axis=1)
+    return r2.to_html(float_format='%.2f', formatters={'timings (s)': lambda v: ', '.join([f'{t:.4f}' for t in v])})
 
-    axes = plt.axes()
-    for lib in all_libs:
-        times = lib_times[lib]
-        plt.step(hashes, times, label=lib, where='mid')
-        axes.annotate(
-            f'{lib} = {times[-1]:.2f} s',
-            (len(hashes)-1, times[-1]),
-            xytext=(-6, 6),
-            horizontalalignment='right',
-            textcoords='offset points',
-            bbox={
-                'boxstyle':'round,pad=0.2',
-                'fc': '#f0f0f0',
-                'ec': '#c0c0c0',
-                'lw': 0.5,
-                'alpha': 0.3,
 
-            }
-        )
-    plt.legend(loc=3, borderpad=1, labelspacing=1)
-    plt.margins(0.01,0)
-    plt.title("Benchmark results by commit (lower is better)")
-    axes.set_ylim(0, max_val * 1.04)
-    axes.set_facecolor('#fefefe')
-    axes.set_xlabel('Commit')
-    axes.set_ylabel('Wallclock time (s)')
-    axes.grid(True, linewidth=0.5, color="#dddddd")
-    plt.tight_layout()
-    buf = StringIO()
-    plt.savefig(buf, format='svg')
-    return buf.getvalue()
+def make_commit_graph(results, col, title=None):
+    results = reversed(results)
+    results = [r for r in results if r['results']]
+    converted = [c for r in results for c in convert_item(r)]
+    r2 = pd.DataFrame(converted)
+    r2['commit_short'] = r2['commit'].str[:7]
+    r2['run_time'] = pd.to_datetime(r2['run_time'], utc=False, unit='s')
+    r2['commit_time'] = pd.to_datetime(r2['commit_time'], utc=False, unit='s')
+    hover_data = ['commit_short', 'commit_time', 'min', 'std', 'normalized']
+    fig = px.line(
+        r2, 
+        x='commit_short', 
+        y=col, 
+        color='lib', 
+        hover_name='lib', 
+        hover_data=hover_data,
+        labels={
+            'min': 'Time Taken (s)', 
+            'commit_short': 'Commit Hash',
+            'normalized': 'Time taken relative to avro',
+        },
+        line_shape='hvh',
+        title=title
+    )
+    fig.update_layout(autosize=True, height=600)
+    return plotly.io.to_html(
+        fig, 
+        include_plotlyjs=False, 
+        include_mathjax=False, 
+        full_html=False
+    )
+
 
 def save_docs(html):
     print('Writing benchmark.html')
@@ -138,6 +147,7 @@ def render_docs(results, latest_commit):
         results=results,
         classes={c.NAME: c for c in ALL_TEST_CLASSES},
         make_commit_graph=make_commit_graph,
+        results_table=results_table,
         latest_commit=latest_commit,
         now=datetime.now()
     )
@@ -150,8 +160,6 @@ def main():
     save_docs(html)
     if 'UPLOAD_TOKEN' in os.environ:
         upload_docs(html)
-    else:
-        save_docs(html)
 
 if __name__ == '__main__':
     sys.exit(main())
