@@ -124,3 +124,28 @@ def test_record_resolution_alias():
     encoded = writer.binary_encode({"a": 1, "c": "hello"})
     decoded = resolved.binary_decode(encoded)
     assert decoded == {"a": 1, "b": b"hello"}
+
+
+def test_field_resolution():
+    writer = cavro.Schema({
+        "type": "record",
+        "name": "test",
+        "fields": [
+            {"name": "a", "type": "int"},
+            {"name": "b", "type": "string"},
+            {"name": "c", "type": "long"},
+        ]
+    })
+    reader = cavro.Schema({
+        "type": "record",
+        "name": "test",
+        "fields": [
+            {"name": "c", "type": "long"},
+            {"name": "a", "type": "int"},
+        ]
+    })
+    resolved = reader.reader_for_writer(writer)
+    rec = {'a': 1, 'b': 'hello', 'c': 2}
+    encoded = writer.binary_encode(rec)
+    decoded = resolved.binary_decode(encoded)
+    assert decoded._asdict() == {'a': 1, 'c': 2}

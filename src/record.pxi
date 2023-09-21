@@ -560,8 +560,9 @@ cdef class PromotingRecordType(RecordType):
         cdef Py_ssize_t field_index
         for field in self.fields:
             field_index = self.decode_indexes[index]
+            value = field.type.binary_buffer_decode(buffer)
             if field_index >= 0: 
-                data[field_index] = field.type.binary_buffer_decode(buffer)
+                data[field_index] = value
             index += 1
         rec = Record.__new__(self.record)
         rec.data = data
