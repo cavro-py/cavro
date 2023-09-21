@@ -4,7 +4,7 @@ import json
 import random
 import time
 import numpy
-from benchmark import simple, many_numbers, complex, pypifile
+from benchmark import simple, many_numbers, complex, pypifile, promotion
 
 import github
 import pygit2
@@ -136,6 +136,8 @@ ALL_TEST_CLASSES = [
     simple.SimpleRecordEncodeDict,
     simple.SimpleRecordDecode,
     simple.SimpleRecordDecodeDict,
+    promotion.SchemaPromotion,
+    promotion.ContainerSchemaPromotion,
 ]
 
 
