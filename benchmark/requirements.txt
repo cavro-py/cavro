@@ -1,3 +1,5 @@
 fastavro
 pygithub
 pygit2
+pandas
+plotly
