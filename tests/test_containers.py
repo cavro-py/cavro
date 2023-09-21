@@ -3,6 +3,7 @@ import uuid
 import cavro
 import pytest
 
+
 from pathlib import Path
 
 
@@ -131,18 +132,19 @@ def test_writing_two_ints_context(monkeypatch):
         writer.write_one(1)
     assert buf.getvalue() == FakeUUID.HEADER + b'\x04\x06\x80\x01\x02' + FakeUUID.bytes
 
+
+@pytest.mark.parametrize('codec', [c.decode() for c in cavro.CODECS.keys()])
 @pytest.mark.parametrize('source_vals,schema', [
     ([1], '"int"'),
     (["The", "Cat", "Sat", "on", "the", "mat"], '"string"'),
     (["Apples"] * 10_000, '"string"'),
 ])
-def test_round_tripping(source_vals, schema):
-    for codec in ['null', 'deflate', 'snappy']:
-        buf = BytesIO()
-        sch = cavro.Schema(schema)
-        with cavro.ContainerWriter(buf, sch, codec) as writer:
-            writer.write_many(source_vals)
-        buf.seek(0)
-        reader = cavro.ContainerReader(buf)
-        obs = list(reader)
-        assert obs == source_vals
+def test_round_tripping(codec, source_vals, schema):
+    buf = BytesIO()
+    sch = cavro.Schema(schema)
+    with cavro.ContainerWriter(buf, sch, codec) as writer:
+        writer.write_many(source_vals)
+    buf.seek(0)
+    reader = cavro.ContainerReader(buf)
+    obs = list(reader)
+    assert obs == source_vals
