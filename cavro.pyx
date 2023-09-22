@@ -30,7 +30,7 @@ elif cython.sizeof(Py_ssize_t) == 4:
 else:
     SSIZE_TYPECODE = "UNKNOWN"
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 __tests = {}
 def _tests(fn):
