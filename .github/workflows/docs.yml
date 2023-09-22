@@ -13,6 +13,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v3
+      - name: Fetch refs
+        run: git fetch -v origin +refs/perf/\*:refs/perf/\*
       - name: Install cavro
         run: pip install .[test]
       - name: Install benchmark requirements
@@ -25,5 +27,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UPLOAD_TOKEN: ${{ secrets.UPLOAD_TOKEN }}
-        run: make upload_benchmark_docker
+        run: PYTHONPATH=. python3 benchmark/update_docs.py
  
