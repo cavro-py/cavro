@@ -4,3 +4,4 @@ pygit2
 pandas
 plotly
 tqdm
+jinja2
