@@ -540,7 +540,7 @@ cdef class RecordType(NamedType):
             out_fields.append(field.placeholder())
         
         cloned = self.clone_base(PromotingRecordType)
-        cloned.decode_indexes = cvarray((len(out_decode_indexes), ), sizeof(unsigned long), SSIZE_TYPECODE)
+        cloned.decode_indexes = cvarray((len(out_decode_indexes), ), sizeof(Py_ssize_t), SSIZE_TYPECODE)
         for i, idx in enumerate(out_decode_indexes):
             cloned.decode_indexes[i] = idx
         cloned.fields = tuple(out_fields)

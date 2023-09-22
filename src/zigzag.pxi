@@ -47,7 +47,7 @@ cdef int zigzag_encode_int(Writer buf, int32_t value) except -1:
         buf.write_u8(cur)
 
 @cython.cdivision(True)
-cdef int zigzag_encode_long(Writer buf, long value) except -1:
+cdef int zigzag_encode_long(Writer buf, int64_t value) except -1:
     cdef uint64_t zz = (value << 1) ^ (value >> 63)
     cdef uint8_t cur
     if zz == 0:
