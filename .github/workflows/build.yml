@@ -18,7 +18,7 @@ jobs:
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_SKIP: "cp36-* cp37-* pp*"
-          CIBW_TEST_REQUIRES: "'avro<1.11' pytest click"
+          CIBW_TEST_REQUIRES: avro<1.11 pytest click
           CIBW_TEST_COMMAND: env PYTHONPATH={project} pytest {project}/tests
       - uses: actions/upload-artifact@v3
         with:
