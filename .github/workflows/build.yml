@@ -1,5 +1,9 @@
-name: Build
-on: [push]
+name: Build Wheels
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
 jobs:
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
@@ -24,3 +28,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
+      - uses: softprops/action-gh-release@1
+        with:
+          files: ./wheelhouse/*.whl
+          draft: true
