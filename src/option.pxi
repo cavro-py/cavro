@@ -71,11 +71,15 @@ class _SignatureWrapper:
         self.annotations = {}
 
     def _set_from_dataclass(self, cls):
-        fields = [(f.name, f.type, f) for f in dataclasses.fields(cls)]
-        for name, type_str, _ in fields:
-            self.annotations[name] = _eval(type_str)
-        inst = dataclasses.make_dataclass(cls.__name__, fields)
-        self.__signature__ = inspect.signature(inst)
+        try:
+            fields = [(f.name, f.type, f) for f in dataclasses.fields(cls)]
+            for name, type_str, _ in fields:
+                self.annotations[name] = _eval(type_str)
+            inst = dataclasses.make_dataclass(cls.__name__, fields)
+            self.__signature__ = inspect.signature(inst)
+        except Exception:
+            pass # 3.11 doesn't allow mappingproxy in frozen dataclasses, but 3.12 makes mappingproxy hashable, which should solve this
+            # We only really use this for documentation, so avoiding the issue should be easy
 
 
 _OptionsWrapper = _SignatureWrapper()
