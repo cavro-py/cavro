@@ -28,7 +28,7 @@ setup(
             extra_compile_args=['-g', '-O2'], 
             extra_link_args=['-g'],
         ),
-        compiler_directives={"language_level": 3, 'embedsignature': True},
+        compiler_directives={"language_level": 3},
     ),
     cmdclass = {'build_clib': build_clib},
     version='0.1',

@@ -1,7 +1,7 @@
 import io
 
 
-cdef class Writer:
+cdef class _Writer:
 
     cdef int write_u8(self, uint8_t val) except -1:
         raise NotImplementedError(
@@ -15,7 +15,7 @@ cdef class Writer:
         pass
 
 
-cdef class Reader:
+cdef class _Reader:
 
     cdef uint8_t read_u8(self) except? 0xba:
         raise NotImplementedError(
@@ -30,7 +30,17 @@ cdef class Reader:
             f"{type(self).__name__} does not implement read_n")
 
 
-cdef class FileReader(Reader):
+cdef class FileReader(_Reader):
+
+    """
+    A cavro wrapper for reading data from a file-like object (Object that implements `.read(n)`).
+    
+    This class will not close or seek the underlying file object
+
+    Arguments:
+        `file_obj`: The file-like object to read from.
+    """
+
     cdef object file_obj
 
     def __init__(self, file_obj):
@@ -55,7 +65,13 @@ cdef class FileReader(Reader):
         return result
 
 
-cdef class FileObjWriter(Writer):
+cdef class FileWriter(_Writer):
+    """
+    A cavro wrapper for writing data to a file-like object (Object that implements `.write(data)` and `.flush()`).
+    
+    This class will not close or seek the underlying file object
+    """
+
     cdef object file_obj
 
     def __init__(self, file_obj):

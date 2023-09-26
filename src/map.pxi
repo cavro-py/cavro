@@ -1,5 +1,6 @@
 
 cdef class MapType(AvroType):
+    """The avro map type."""
     type_name = "map"
 
     cdef StringType key_type
@@ -28,7 +29,7 @@ cdef class MapType(AvroType):
     cpdef dict _get_schema_extra(self, set created):
         return {'values': self.value_type.get_schema(created)}
 
-    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int _binary_buffer_encode(self, _Writer buffer, value) except -1:
         if hasattr(value, 'items'):
             value = value.items()
         zigzag_encode_long(buffer, len(value))
@@ -44,7 +45,7 @@ cdef class MapType(AvroType):
             zigzag_encode_long(buffer, 0)
         return 0
 
-    cdef _binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, _Reader buffer):
         cdef dict out = {}
         cdef size_t length
         cdef str key
@@ -151,7 +152,7 @@ cdef class MapType(AvroType):
                 return self._make_converted_map(iter(value))
         return orig_value
 
-    cdef CanonicalForm canonical_form(self, set created):
+    cdef _CanonicalForm canonical_form(self, set created):
         return dict_to_canonical({
             'type': 'map',
             'values': self.value_type.canonical_form(created)

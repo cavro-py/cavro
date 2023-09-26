@@ -94,7 +94,7 @@ def test_fixed_encoding():
 
 def test_fixed_encoding_padding():
     schema = cavro.Schema({"type": "fixed", "size": 4, "name": "test"})
-    permissive_schema = cavro.Schema({"type": "fixed", "size": 4, "name": "test"}, zero_pad_fixed=True, truncate_fixed=True)
+    permissive_schema = cavro.Schema({"type": "fixed", "size": 4, "name": "test"}, null_pad_fixed=True, truncate_fixed=True)
     
     with pytest.raises(ValueError):
         schema.binary_encode(b'ab')
@@ -107,7 +107,7 @@ def test_fixed_encoding_padding():
 
 def test_fixed_json():
     schema = cavro.Schema({"type": "fixed", "size": 4, "name": "test"})
-    permisive_schema = cavro.Schema({"type": "fixed", "size": 4, "name": "test"}, zero_pad_fixed=True, truncate_fixed=True)
+    permisive_schema = cavro.Schema({"type": "fixed", "size": 4, "name": "test"}, null_pad_fixed=True, truncate_fixed=True)
 
     assert schema.json_encode(b'abcd') == '"abcd"'
     with pytest.raises(ValueError):

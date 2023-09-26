@@ -3,6 +3,7 @@ import collections
 
 @cython.final
 cdef class ArrayType(AvroType):
+    """The avro array type."""
     type_name = "array"
 
     cdef readonly AvroType item_type
@@ -28,7 +29,7 @@ cdef class ArrayType(AvroType):
     cpdef dict _get_schema_extra(self, set created):
         return {'items': self.item_type.get_schema(created)}
 
-    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int _binary_buffer_encode(self, _Writer buffer, value) except -1:
         cdef size_t idx = 0
         if len(value):
             zigzag_encode_long(buffer, len(value))
@@ -42,7 +43,7 @@ cdef class ArrayType(AvroType):
                 idx += 1
         zigzag_encode_long(buffer, 0)
 
-    cdef _binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, _Reader buffer):
         cdef list out = []
         cdef size_t length
         cdef str key
@@ -104,7 +105,7 @@ cdef class ArrayType(AvroType):
                 return self._make_converted_list(iter(value))
         return value
 
-    cdef CanonicalForm canonical_form(self, set created):
+    cdef _CanonicalForm canonical_form(self, set created):
         return dict_to_canonical({
             'type': 'array',
             'items': self.item_type.canonical_form(created)

@@ -23,6 +23,7 @@ cdef bint are_union_values_ambiguous(sub_types):
 
 @cython.final
 cdef class UnionType(AvroType):
+    """The avro union type"""
     type_name = "union"
 
     cdef readonly tuple union_types
@@ -58,7 +59,7 @@ cdef class UnionType(AvroType):
         seen_types = set()
         self.by_name_map = {}
         for member in self.union_types:
-            if isinstance(member, NamedType):
+            if isinstance(member, _NamedType):
                 self.by_name_map[member.name] = member
                 self.by_name_map[member.type] = member
             else:
@@ -116,14 +117,14 @@ cdef class UnionType(AvroType):
             raise InvalidValue(value, self)
         return best_index
 
-    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int _binary_buffer_encode(self, _Writer buffer, value) except -1:
         cdef size_t type_index = self.resolve_from_value(value)
         cdef AvroType encode_type = self.union_types[type_index]
         zigzag_encode_long(buffer, type_index)
         encode_type.binary_buffer_encode(buffer, value)
         return 0
 
-    cdef _binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, _Reader buffer):
         cdef Py_ssize_t index = zigzag_decode_long(buffer)
         if index < 0 or index >= len(self.union_types):
             raise ValueError(f"Value {index} is not valid for a union of {len(self.union_types)} items")
@@ -170,12 +171,12 @@ cdef class UnionType(AvroType):
         cdef Py_ssize_t index = self.resolve_from_value(value)
         return self.union_types[index].convert_value(value)
 
-    cdef CanonicalForm canonical_form(self, set created):
+    cdef _CanonicalForm canonical_form(self, set created):
         cdef list parts = []
         cdef AvroType avro_type
         for avro_type in self.union_types:
             parts.append(avro_type.canonical_form(created))
-        return CanonicalForm('[' + ','.join(parts) + ']')
+        return _CanonicalForm('[' + ','.join(parts) + ']')
 
     cdef AvroType _for_writer(self, AvroType writer):
         cdef AvroType sub_type

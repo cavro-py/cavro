@@ -1,5 +1,6 @@
 
-cdef class EnumType(NamedType):
+cdef class EnumType(_NamedType):
+    """The avro enum type"""
     type_name = 'enum'
 
     cdef readonly tuple symbols
@@ -8,12 +9,13 @@ cdef class EnumType(NamedType):
     cdef readonly str doc
 
     def __init__(self, schema, source, namespace):
-        NamedType.__init__(self, schema, source, namespace)
+        _NamedType.__init__(self, schema, source, namespace)
+        cdef Schema schema_ = schema
         raw_symbols = source['symbols']
         if not isinstance(raw_symbols, (list, tuple)):
             raise ValueError("Enum symbols must be a list of strings")
         
-        if schema.options.enum_symbols_must_be_unique:
+        if schema_.options.enum_symbols_must_be_unique:
             seen_symbols = set()
             for symbol in raw_symbols:
                 if symbol in seen_symbols:
@@ -22,12 +24,12 @@ cdef class EnumType(NamedType):
         else:
             seen_symbols = raw_symbols
 
-        name_pattern = schema.options.name_pattern
-        if schema.options.enforce_enum_symbol_name_rules:
+        name_pattern = schema_.options.name_pattern
+        if schema_.options.enforce_enum_symbol_name_rules:
             for symbol in seen_symbols:
                 if not isinstance(symbol, str):
                     raise InvalidName('Enum symbols must be a list of strings')
-                if schema.options.enforce_enum_symbol_name_rules:
+                if schema_.options.enforce_enum_symbol_name_rules:
                     if not name_pattern.fullmatch(symbol):
                         raise InvalidName(f"Enum symbol '{symbol}' is not a valid name")
         
@@ -61,17 +63,17 @@ cdef class EnumType(NamedType):
         })
 
     cpdef dict _get_schema_extra(self, set created):
-        extra = NamedType._get_schema_extra(self, created)
+        extra = _NamedType._get_schema_extra(self, created)
         if self.default_value is not NO_DEFAULT:
             extra['default'] = self.default_value
         extra['symbols'] = list(self.symbols)
         return extra
 
-    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int _binary_buffer_encode(self, _Writer buffer, value) except -1:
         cdef size_t index = self.symbol_indexes[value]
         zigzag_encode_long(buffer, index)
 
-    cdef _binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, _Reader buffer):
         return self.symbols[zigzag_decode_long(buffer)]
 
     cdef int _get_value_fitness(self, value) except -1:
@@ -95,9 +97,9 @@ cdef class EnumType(NamedType):
             raise ValueError(f"'{value}' invalid for enum")
         return value
 
-    cdef CanonicalForm canonical_form(self, set created):
+    cdef _CanonicalForm canonical_form(self, set created):
         if self in created and not self.options.canonical_form_repeat_enum:
-            return CanonicalForm('"' + self.type + '"')
+            return _CanonicalForm('"' + self.type + '"')
         created.add(self)
         return dict_to_canonical({
             'type': 'enum',
@@ -114,7 +116,7 @@ cdef class EnumType(NamedType):
         reader_symbols = set(self.symbols)
         writer_symbols = set(writer_enum.symbols)
         writer_extra_symbols = writer_symbols - reader_symbols
-        if not writer_extra_symbols:  # Reader knows about all possible symbols
+        if not writer_extra_symbols:  # reader knows about all possible symbols
             return self
         
         cdef PromotingEnumType new_type = writer.clone_base(PromotingEnumType)
@@ -144,7 +146,7 @@ cdef class PromotingEnumType(EnumType):
             return self.default_value
         return value
 
-    cdef _binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, _Reader buffer):
         value = EnumType._binary_buffer_decode(self, buffer)
         if value is NO_DEFAULT:
             raise CannotPromoteError(self.reader_type, self.writer_type, f"Unknown value for enum")

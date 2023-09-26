@@ -4,7 +4,13 @@ cdef array.array byte_buffer_template = array.array('B', [])
 
 @cython.no_gc_clear
 @cython.final
-cdef class MemoryWriter(Writer):
+cdef class MemoryWriter(_Writer):
+
+    """
+    A class that writes to a memory buffer. The buffer is automatically resized to fit the data.
+
+    The underlying data is accessible through the `buffer` attribute as an `array.array` of bytes.
+    """
 
     cdef readonly array.array buffer
     cdef readonly size_t len
@@ -42,7 +48,14 @@ cdef class MemoryWriter(Writer):
 cdef bytes empty_buffer = b"\x00"
 
 
-cdef class MemoryReader(Reader):
+cdef class MemoryReader(_Reader):
+
+    """
+    A class that allows cavro to read binary data from a memory buffer.
+
+    Arguments:
+     * data: The data to read from. Can be a `bytes` object or a `memoryview`.
+    """
 
     cdef const uint8_t[:] data
     cdef const uint8_t* ptr

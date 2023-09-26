@@ -1,5 +1,10 @@
 cdef class ValueAdapter:
 
+    """
+    Abstract base class for any helper that affects how values are transformed prior to avro encoding/decoding.
+    """
+
+
     cdef encode_value(self, value):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement encode_value")
@@ -16,10 +21,17 @@ cdef int twos_complement(int value, int bits):
 
 
 cdef class LogicalType(ValueAdapter):
+
+    """
+    Semi-abstract class for all logical types.
+    
+    Subclasses must be implemented as cython classes.
+    """
+
     logical_name = NotImplemented
     underlying_types = NotImplemented
 
-    @class_inst_method
+    @_class_inst_method
     def for_type(inst, cls, underlying: AvroType):
         cdef object ob = inst
         if inst is None:
@@ -34,6 +46,22 @@ cdef class LogicalType(ValueAdapter):
 
 cdef class CustomLogicalType(LogicalType):
 
+    """
+    Logical type that allows custom encoding/decoding functions to be provided.
+    
+    To use a custom logical type, subclass this class, and implement the:
+     * `encode_value(value: object) -> object` - Transforms a provided value into something that can be encoded by the underlying type.
+     * `decode_value(value: object) -> object` - Transforms a value decoded by the underlying type into a value to return to the user.
+    methods.
+
+    Also implement two class attributes, and a classmethod:
+     * `logical_name` - The name to look for in the schema
+     * `underlying_types` A tuple of `AvtoType` classes that this logical type can be applied to.
+     * `_for_type(cls, underlying: AvroType) -> Cls` 
+        A classmethod that returns an instance of the class, optionally customized with information from the underlying type,
+        or None if the logical type is not applicable to the underlying type.
+    """
+
     cdef encode_value(self, value):
         return self.custom_encode_value(value)
 
@@ -42,6 +70,8 @@ cdef class CustomLogicalType(LogicalType):
 
 
 cdef class DecimalType(LogicalType):
+    """Logical type for decimal values."""
+
     logical_name = 'decimal'
     underlying_types = (BytesType, FixedType)
 
@@ -135,6 +165,7 @@ cdef class DecimalType(LogicalType):
       
 
 cdef class UUIDBase(LogicalType):
+    """Logical type for UUID values"""
     logical_name = 'uuid'
     cdef bint return_uuid_object
 
@@ -204,6 +235,7 @@ EPOCH_DT = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
 EPOCH_DT_NO_TZ = datetime.datetime(1970, 1, 1)
 
 cdef class Date(LogicalType):
+    """Logical type for Date values"""
     logical_name = 'date'
     underlying_types = (IntType, )
 
@@ -235,10 +267,11 @@ cdef class Date(LogicalType):
         return EPOCH_DATE + datetime.timedelta(days=value)
 
 
-def time_to_micros(value):
+def _time_to_micros(value):
     return value.microsecond + 1_000_000 * (value.second + 60 * (value.minute + 60 * value.hour))
 
-def micros_to_time(value):
+
+def _micros_to_time(value):
     return datetime.time(
         hour=value // 3_600_000_000,
         minute=(value // 60_000_000) % 60,
@@ -247,7 +280,7 @@ def micros_to_time(value):
     )
 
 
-MAX_TIME = time_to_micros(datetime.time.max)
+MAX_TIME = _time_to_micros(datetime.time.max)
 
 
 cdef object dt_to_timedelta(value):
@@ -257,6 +290,7 @@ cdef object dt_to_timedelta(value):
 
 
 cdef class TimeMillis(LogicalType):
+    """Logical type for time-millis values"""
     logical_name = 'time-millis'
     underlying_types = (IntType, )
 
@@ -273,13 +307,14 @@ cdef class TimeMillis(LogicalType):
             return value
         if isinstance(value, datetime.datetime):
             value = value.time()
-        return time_to_micros(value) // 1_000
+        return _time_to_micros(value) // 1_000
 
     cdef decode_value(self, value):
-        return micros_to_time(value * 1_000)
+        return _micros_to_time(value * 1_000)
 
 
 cdef class TimeMicros(LogicalType):
+    """Logical type for time-micros values"""
     logical_name = 'time-micros'
     underlying_types = (LongType, )
 
@@ -296,13 +331,14 @@ cdef class TimeMicros(LogicalType):
             return value
         if isinstance(value, datetime.datetime):
             value = value.time()
-        return time_to_micros(value)
+        return _time_to_micros(value)
 
     cdef decode_value(self, value):
-        return micros_to_time(value)
+        return _micros_to_time(value)
 
 
 cdef class TimestampMillis(LogicalType):
+    """Logical type for timestamp-micros values"""
     logical_name = 'timestamp-millis'
     underlying_types = (LongType, )
 
@@ -337,6 +373,7 @@ cdef class TimestampMillis(LogicalType):
 
 
 cdef class TimestampMicros(LogicalType):
+    """Logical type for timestamp-micros values"""
     logical_name = 'timestamp-micros'
     underlying_types = (LongType, )
 

@@ -23,7 +23,16 @@ cdef init_rabin_table():
 
 @cython.final
 cdef class Rabin:
+
+    """
+    An implementation of the 64-bit Rabin hash function  as described in the avro specification.
+
+    The interface in this class roughly approximates the `hashlib.hash` objects.
+    """
+
     name = 'rabin'
+    digest_size = 8
+    block_size = 8
 
     cdef readonly int64_t value
 

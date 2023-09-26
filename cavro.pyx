@@ -1,10 +1,21 @@
 
+"""
+`cavro` is a library for encoding and decoding data in the Apache Avro format.
+
+It's written in Cython, with a focus on performance, correctness and ease-of-use.
+"""
+
 cimport cython
 import warnings
 from cpython.object cimport Py_SIZE
 from libc.stdint cimport *
 from libc.string cimport memcmp
+import inspect
 import dataclasses
+
+from collections.abc import Sequence
+
+from cython.dataclasses cimport dataclass
 import datetime
 import re
 import decimal
@@ -15,6 +26,7 @@ from functools import partial
 import uuid
 import math
 from types import MappingProxyType
+from typing import Union
 from cpython.dict cimport PyDictProxy_New
 
 from cython.view cimport array as cvarray

@@ -9,6 +9,7 @@ cdef float FLOAT_INT_THRESHOLD = 0.001
 
 @cython.final
 cdef class BoolType(AvroType):
+    """The avro boolean type."""
     type_name = "boolean"
 
     cpdef AvroType copy(self):
@@ -20,11 +21,11 @@ cdef class BoolType(AvroType):
     cpdef dict _get_schema_extra(self, set created):
         return {}
 
-    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int _binary_buffer_encode(self, _Writer buffer, value) except -1:
         cdef bint bool_val = self._convert_value(value)
         buffer.write_u8(bool_val)
 
-    cdef object _binary_buffer_decode(self, Reader buffer):
+    cdef object _binary_buffer_decode(self, _Reader buffer):
         return py_bool(buffer.read_u8())
 
     cdef int _get_value_fitness(self, value) except -1:
@@ -52,12 +53,13 @@ cdef class BoolType(AvroType):
         cdef py_bool decoded = value
         return decoded
 
-    cdef CanonicalForm canonical_form(self, set created):
-        return CanonicalForm('"boolean"')
+    cdef _CanonicalForm canonical_form(self, set created):
+        return _CanonicalForm('"boolean"')
 
 
 @cython.final
 cdef class IntType(AvroType):
+    """The avro int type."""
     type_name = "int"
 
     cpdef AvroType copy(self):
@@ -69,11 +71,11 @@ cdef class IntType(AvroType):
     cpdef dict _get_schema_extra(self, set created):
         return {}
 
-    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int _binary_buffer_encode(self, _Writer buffer, value) except -1:
         value = self._convert_value(value)
         zigzag_encode_int(buffer, value)
 
-    cdef _binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, _Reader buffer):
         return zigzag_decode_int(buffer)
 
     cdef int _get_value_fitness(self, value) except -1:
@@ -111,7 +113,7 @@ cdef class IntType(AvroType):
                 return INT32_MIN
         else:
             return value
-        raise OverflowError(f"Value {value} out of range for int")
+        raise InvalidValue(value, self)
 
     cdef _json_format(self, value):
         return self._convert_value(value)
@@ -120,15 +122,16 @@ cdef class IntType(AvroType):
         if isinstance(value, (float, py_bool, bool_)) or not isinstance(value, int):
             raise InvalidValue(value, self)
         if value < INT32_MIN or value > INT32_MAX:
-            raise OverflowError(f"Value {value} out of range for int")
+            raise InvalidValue(value, self)
         return value
 
-    cdef CanonicalForm canonical_form(self, set created):
-        return CanonicalForm('"int"')
+    cdef _CanonicalForm canonical_form(self, set created):
+        return _CanonicalForm('"int"')
 
 
 @cython.final
 cdef class LongType(AvroType):
+    """The avro long type."""
     type_name = "long"
 
     cpdef AvroType copy(self):
@@ -140,11 +143,11 @@ cdef class LongType(AvroType):
     cpdef dict _get_schema_extra(self, set created):
         return {}
 
-    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int _binary_buffer_encode(self, _Writer buffer, value) except -1:
         value = self._convert_value(value)
         zigzag_encode_long(buffer, value)
 
-    cdef _binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, _Reader buffer):
         return zigzag_decode_long(buffer)
 
     cdef int _get_value_fitness(self, value) except -1:
@@ -182,7 +185,7 @@ cdef class LongType(AvroType):
                 return INT64_MIN
         else:
             return value
-        raise OverflowError(f"Value {value} out of range for long")
+        raise InvalidValue(value, self)
 
     cdef json_format(self, object value):
         return self._convert_value(value)
@@ -191,11 +194,11 @@ cdef class LongType(AvroType):
         if isinstance(value, (float, py_bool, bool_)) or not isinstance(value, int):
             raise InvalidValue(value, self)
         if value < INT64_MIN or value > INT64_MAX:
-            raise OverflowError(f"Value {value} out of range for int")
+            raise InvalidValue(value, self)
         return value
 
-    cdef CanonicalForm canonical_form(self, set created):
-        return CanonicalForm('"long"')
+    cdef _CanonicalForm canonical_form(self, set created):
+        return _CanonicalForm('"long"')
 
     cdef AvroType _for_writer(self, AvroType writer):
         if isinstance(writer, IntType):
@@ -204,6 +207,7 @@ cdef class LongType(AvroType):
 
 @cython.final
 cdef class FloatType(AvroType):
+    """The avro float type."""
     type_name = "float"
 
     cpdef AvroType copy(self):
@@ -215,12 +219,12 @@ cdef class FloatType(AvroType):
     cpdef dict _get_schema_extra(self, set created):
         return {}
 
-    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int _binary_buffer_encode(self, _Writer buffer, value) except -1:
         cdef float float_val = self._convert_value(value)
         cdef uint8_t *int_val = <uint8_t*>&float_val
         buffer.write_n(int_val[:4])
 
-    cdef _binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, _Reader buffer):
         cdef const uint8_t[:] val = buffer.read_n(4)
         return (<float*>(&val[0]))[0]
 
@@ -242,7 +246,7 @@ cdef class FloatType(AvroType):
                 except (ValueError, TypeError, OverflowError):
                     return FIT_NONE
         
-        if self.options.truncate_float:
+        if self.options.clamp_float_overflow or self.options.float_out_of_range_inf:
             return max_fit
 
         if (value >= -FLT_MAX and value <= FLT_MAX) or isnan(value) or isinf(value):
@@ -270,22 +274,27 @@ cdef class FloatType(AvroType):
                     raise InvalidValue(value, self)
         
         if isnan(value):
-            if self.options.clamp_float_overflow:
+            if self.options.clamp_float_overflow and not self.options.float_out_of_range_inf:
                 return 0.0
             return value
         if isinf(value):
-            if self.options.clamp_float_overflow:
-                return FLT_MAX
+            if self.options.clamp_float_overflow and not self.options.float_out_of_range_inf:
+                return FLT_MAX if value > 0 else -FLT_MAX
             return value
         if value < -FLT_MAX:
             if self.options.clamp_float_overflow:
                 return -FLT_MAX
+            if self.options.float_out_of_range_inf:
+                return float('-inf')
+            raise InvalidValue(value, self)
         elif value > FLT_MAX:
             if self.options.clamp_float_overflow:
                 return FLT_MAX
+            if self.options.float_out_of_range_inf:
+                return float('inf')
+            raise InvalidValue(value, self)
         else:
             return value
-        raise OverflowError(f"Value {value} out of range for float")
 
     cdef _json_format(self, value):
         return self._convert_value(value)
@@ -298,11 +307,11 @@ cdef class FloatType(AvroType):
         if not isinstance(value, (float, int)):
             raise InvalidValue(value, self)
         if (value < -FLT_MAX or value > FLT_MAX) and not isnan(value) and not isinf(value):
-            raise OverflowError(f"Value {value} out of range for float")
+            raise InvalidValue(value, self)
         return value
 
-    cdef CanonicalForm canonical_form(self, set created):
-        return CanonicalForm('"float"')
+    cdef _CanonicalForm canonical_form(self, set created):
+        return _CanonicalForm('"float"')
 
     cdef AvroType _for_writer(self, AvroType writer):
         if isinstance(writer, (IntType, LongType)):
@@ -313,6 +322,7 @@ cdef class FloatType(AvroType):
 
 @cython.final
 cdef class DoubleType(AvroType):
+    """The avro double type."""
     type_name = "double"
 
     cpdef AvroType copy(self):
@@ -324,12 +334,12 @@ cdef class DoubleType(AvroType):
     cpdef dict _get_schema_extra(self, set created):
         return {}
 
-    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int _binary_buffer_encode(self, _Writer buffer, value) except -1:
         cdef double float_val = self._convert_value(value)
         cdef uint8_t *int_val = <uint8_t*>&float_val
         buffer.write_n(int_val[:8])
 
-    cdef _binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, _Reader buffer):
         cdef const uint8_t[:] val = buffer.read_n(8)
         return (<double*>(&val[0]))[0]
 
@@ -391,8 +401,8 @@ cdef class DoubleType(AvroType):
             raise InvalidValue(value, self)
         return value
 
-    cdef CanonicalForm canonical_form(self, set created):
-        return CanonicalForm('"double"')
+    cdef _CanonicalForm canonical_form(self, set created):
+        return _CanonicalForm('"double"')
 
     cdef AvroType _for_writer(self, AvroType writer):
         cdef AvroType promoted

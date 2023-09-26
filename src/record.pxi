@@ -1,13 +1,24 @@
 
 class Order(enum.Enum):
+    """
+    The order of a field in a record.
+    """
+
     ASC = 'ascending'
     DESC = 'descending'
     IGNORE = 'ignore'
+    
 
-NO_DEFAULT = Sentinel('NO_DEFAULT')
+NO_DEFAULT = _Sentinel('NO_DEFAULT')
 
 
-cdef class PlaceholderType(AvroType):
+cdef class _PlaceholderType(AvroType):
+
+    """
+    An avro type that just provied a constant value when read.
+    This is used during schema promotion where the reader has a defaulted value that the writer does not.
+    """
+
     type_name = "placeholder"
 
     cdef readonly object default_value
@@ -26,10 +37,10 @@ cdef class PlaceholderType(AvroType):
     cdef _make_logical(self, schema, source):
         pass
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int binary_buffer_encode(self, _Writer buffer, value) except -1:
         raise NotImplementedError("Placeholder types cannot be encoded")
 
-    cdef _binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, _Reader buffer):
         return self.default_value
 
     cdef int _get_value_fitness(self, value) except -1:
@@ -44,11 +55,11 @@ cdef class PlaceholderType(AvroType):
     cpdef object _convert_value(self, object value):
         return None
 
-    cdef CanonicalForm canonical_form(self, set created):
+    cdef _CanonicalForm canonical_form(self, set created):
         raise NotImplementedError("Placeholder types have no canonical form")
 
 
-cdef list record_data_from_dict(RecordType record, dict data):
+cdef list _record_data_from_dict(RecordType record, dict data):
     cdef list field_data = [None] * len(record.fields)
     cdef Py_ssize_t index = 0
     cdef Options options = record.options
@@ -75,6 +86,22 @@ cdef list record_data_from_dict(RecordType record, dict data):
 
 @cython.freelist(8)
 cdef class Record:
+
+    """
+    An instance of a record value from a schema.
+    This class should never be instantiated directly, instead it forms the base-class for `RecordType.record` classes.
+
+    Field values can be accessed using dot notation, e.g. `record.field_name`, index notation, e.g. `record['field_name']`, or by calling `_asdict()`
+    Subclasses of record have a class attribute: `Type`, which is the `RecordType` schema that the record was created from.
+
+    Internally, records are represented as a list of values, one for each field in the record, with associated field metadata.
+    Subclasses can be instantiated in the following ways:
+     * `Record(data: list|tuple)`: The length of data must match the number of fields in the record, and each value should correspond to the relevant field value
+     * `Record(data: dict)`: The keys of the dict must match the field names, and each value should correspond to the relevant field value
+     * `Record(data: Record)`: The record must be of the same type as the subclass, or must be adaptable to the subclass (Matching name and fields)
+     * `Record(**kwargs)`: Each keyword argument should correspond to a field name, and the value should correspond to the relevant field value
+    """
+
     cdef list data
 
     def __init__(self, data=None, **kwargs):
@@ -95,7 +122,7 @@ cdef class Record:
             data_dict = data
         else:
             data_dict = kwargs
-        self.data = record_data_from_dict(self.Type, data_dict)
+        self.data = _record_data_from_dict(self.Type, data_dict)
 
     def __dir__(self):
         return ['Type'] + [f.name for f in self.Type.fields] + ['_asdict', '__getitem__']
@@ -134,6 +161,9 @@ cdef class Record:
         return f'<Record:{self.Type.type} {self._repr_children(70)}>'
 
     def _asdict(self):
+        """
+        Returns the record as a dict, with field names as keys.
+        """
         cdef dict items = {}
         cdef RecordField field
         cdef Py_ssize_t i = 0
@@ -154,6 +184,12 @@ cdef class Record:
 
 @cython.final
 cdef class RecordField:
+
+    """
+    Holds the metadata for a record schema field.
+    This class should never be instantiated directly, instead it is created by `RecordType` when parsing a schema.
+    """
+
     cdef readonly str name
     cdef readonly str writer_name
     cdef readonly str doc
@@ -191,13 +227,13 @@ cdef class RecordField:
         cdef RecordField rec = RecordField.__new__(RecordField)
         rec.name = self.name
         rec.doc = ''
-        rec.type = PlaceholderType(self.type.options, self.default_value)
+        rec.type = _PlaceholderType(self.type.options, self.default_value)
         rec.default_value = self.default_value
         rec.order = Order.ASC
         rec.aliases = frozenset()
         return rec
 
-    cdef CanonicalForm canonical_form(self, set created):
+    cdef _CanonicalForm canonical_form(self, set created):
         return dict_to_canonical({
             'name': self.name,
             'type': self.type.canonical_form(created),
@@ -226,7 +262,7 @@ cdef class RecordField:
 
 
 @cython.final
-cdef class FieldAccessor:
+cdef class _FieldAccessor:
     cdef Py_ssize_t index
 
     def __init__(self, index):
@@ -241,11 +277,11 @@ cdef class FieldAccessor:
         record.data[self.index] = value
 
 
-cdef object make_record_class(RecordType record_type):
+cdef object _make_record_class(RecordType record_type):
     attrs = {}
     field_to_index = {}
     for i, field in enumerate(record_type.fields):
-        attrs[field.name] = FieldAccessor(i)
+        attrs[field.name] = _FieldAccessor(i)
         field_to_index[field.name] = i
 
     attrs['Type'] = record_type
@@ -257,10 +293,20 @@ cdef object make_record_class(RecordType record_type):
         attrs
     )
 
-EMPTY_ARRAY = array.array(SSIZE_TYPECODE.decode())
+_EMPTY_ARRAY = array.array(SSIZE_TYPECODE.decode())
 
 
-cdef class RecordType(NamedType):
+cdef class RecordType(_NamedType):
+
+    """
+    The Type that corresponds to a Record in a Schema.
+
+    Attributes:
+     * `doc` Any "doc" metadata defined in the schema
+     * `fields` A tuple of `RecordField` instances, one for each field in the record
+     * `record` A subclass of `Record` that can be used to instantiate records of this type
+    """
+
     type_name = 'record'
 
     cdef readonly str doc
@@ -271,20 +317,21 @@ cdef class RecordType(NamedType):
     cdef bint _setting_up
 
     def __init__(self, schema, source, namespace):
+        cdef Schema schema_ = schema
         self._setting_up = True
         self.doc = source.get('doc', '')
-        NamedType.__init__(self, schema, source, namespace)
+        _NamedType.__init__(self, schema, source, namespace)
         self.fields = tuple(
-            RecordField(schema, f, self.effective_namespace) for f in source['fields']
+            RecordField(schema_, f, self.effective_namespace) for f in source['fields']
         )
         self.field_dict = {}
         for field in self.fields:
-            if schema.options.record_fields_must_be_unique and field.name in self.field_dict:
+            if schema_.options.record_fields_must_be_unique and field.name in self.field_dict:
                 raise InvalidName(f'Duplicate field name: {field.name}')
             self.field_dict[field.name] = field
 
         n_fields = len(self.fields)
-        self.record = make_record_class(self)
+        self.record = _make_record_class(self)
 
         self._setting_up = False
         logical = self._make_logical(schema, source)
@@ -325,7 +372,7 @@ cdef class RecordType(NamedType):
         extra = super(RecordType, self)._get_schema_extra(created)
         return dict(extra, fields=[f.get_schema(created) for f in self.fields])
 
-    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int _binary_buffer_encode(self, _Writer buffer, value) except -1:
         cdef RecordField field
         cdef list rec_data
         cdef Record rec
@@ -366,7 +413,7 @@ cdef class RecordType(NamedType):
                 e.schema_path = prefix + e.schema_path
                 raise
 
-    cdef _binary_buffer_decode_record(self, Reader buffer):
+    cdef _binary_buffer_decode_record(self, _Reader buffer):
         cdef RecordField field
         cdef list data = [None] * len(self.fields)
         cdef Record rec
@@ -378,7 +425,7 @@ cdef class RecordType(NamedType):
         rec.data = data
         return rec
 
-    cdef _binary_buffer_decode_dict(self, Reader buffer):
+    cdef _binary_buffer_decode_dict(self, _Reader buffer):
         cdef RecordField field
         cdef dict data = {}
         for field in self.fields:
@@ -387,7 +434,7 @@ cdef class RecordType(NamedType):
                 data[field.name] = value
         return data
 
-    cdef _binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, _Reader buffer):
         if self.options.record_decodes_to_dict:
             return self._binary_buffer_decode_dict(buffer)
         return self._binary_buffer_decode_record(buffer)
@@ -472,10 +519,10 @@ cdef class RecordType(NamedType):
             return value
         return self.record(value)
 
-    cdef CanonicalForm canonical_form(self, set created):
+    cdef _CanonicalForm canonical_form(self, set created):
         cdef RecordField field
         if self in created:
-            return CanonicalForm('"' + self.type + '"')
+            return _CanonicalForm('"' + self.type + '"')
         created.add(self)
         return dict_to_canonical({
             'type': 'record',
@@ -550,9 +597,14 @@ cdef class RecordType(NamedType):
 
 
 cdef class PromotingRecordType(RecordType):
+
+    """
+    A variant of a `RecordType`, specialized for reading records from a different schema from a writer.
+    """
+
     cdef Py_ssize_t [:] decode_indexes
 
-    cdef _binary_buffer_decode_record(self, Reader buffer):
+    cdef _binary_buffer_decode_record(self, _Reader buffer):
         cdef RecordField field
         cdef list data = [None] * len(self.fields)
         cdef Record rec

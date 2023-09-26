@@ -1,5 +1,7 @@
 import cavro
 import pytest
+import math
+from cavro import InvalidValue
 
 import struct
 
@@ -36,16 +38,15 @@ def test_int_decoding(value, expected):
 def test_int_overflow():
     schema = cavro.Schema('"int"')
     assert schema.can_encode(2**32) == False
-    with pytest.raises(OverflowError) as exc:
+    with pytest.raises(InvalidValue) as exc:
         schema.binary_encode(2**33)
-    assert "out of range" in str(exc.value)
 
 
 def test_int_json():
     schema = cavro.Schema('"int"')
     assert schema.json_encode(1) == "1"
     assert schema.json_encode(2**31-1) == "2147483647"
-    with pytest.raises(OverflowError ):
+    with pytest.raises(InvalidValue ):
         schema.json_encode(2**63-1)
 
 
@@ -91,12 +92,10 @@ def test_long_decoding(value, expected):
 def test_long_overflow():
     schema = cavro.Schema('"long"')
     assert schema.can_encode(2**64) == False
-    with pytest.raises(OverflowError) as exc:
+    with pytest.raises(InvalidValue) as exc:
         schema.binary_encode(2**65)
-    assert "out of range" in str(exc.value)
-    with pytest.raises(OverflowError) as exc:
+    with pytest.raises(InvalidValue) as exc:
         schema.binary_encode(-2**65)
-    assert "out of range" in str(exc.value)
 
 
 def test_long_json():
@@ -104,7 +103,7 @@ def test_long_json():
     assert schema.json_encode(1) == "1"
     assert schema.json_encode(2**31-1) == "2147483647"
     assert schema.json_encode(2**63-1) == "9223372036854775807"
-    with pytest.raises(OverflowError):
+    with pytest.raises(InvalidValue):
         schema.json_encode(2**64)
 
 
@@ -149,7 +148,7 @@ def test_decode_float_json():
     assert schema.json_decode("3.14159") == 3.14159
     with pytest.raises(ValueError):
         schema.json_decode('"3.14159"')
-    with pytest.raises(OverflowError):
+    with pytest.raises(InvalidValue):
         schema.json_decode('1e100')
 
 
@@ -165,7 +164,7 @@ def test_decode_int_json():
     assert schema.json_decode("23") == 23
     with pytest.raises(ValueError):
         schema.json_decode('12.23')
-    with pytest.raises(OverflowError):
+    with pytest.raises(InvalidValue):
         schema.json_decode('4294967296')
 
 
@@ -174,7 +173,7 @@ def test_decode_long_json():
     assert schema.json_decode("23") == 23
     with pytest.raises(ValueError):
         schema.json_decode('12.23')
-    with pytest.raises(OverflowError):
+    with pytest.raises(InvalidValue):
         schema.json_decode('18446744073709551616')
 
 
@@ -219,3 +218,44 @@ def test_double_nan_inf():
     assert schema.binary_encode(float('inf')) == b'\x00\x00\x00\x00\x00\x00\xf0\x7f'
     assert schema.binary_encode(float('-inf')) == b'\x00\x00\x00\x00\x00\x00\xf0\xff'
 
+
+FLOAT_MAX = 3.4028234663852886e+38
+
+@pytest.mark.parametrize('value,expected', [
+    (1e100, FLOAT_MAX),
+    (-1e100, -FLOAT_MAX),
+    (float('inf'), FLOAT_MAX),
+    (float('-inf'), -FLOAT_MAX),
+    (float('nan'), 0),
+])
+def test_clamp_float_overflow(value, expected):
+    permissive_schema = cavro.Schema('"float"', clamp_float_overflow=True)
+    encoded = permissive_schema.binary_encode(value)
+    decoded = permissive_schema.binary_decode(encoded)
+    assert decoded == expected
+
+@pytest.mark.parametrize('value,test,neg', [
+    (1e100, math.isinf, False),
+    (-1e100, math.isinf, True),
+    (float('inf'), math.isinf, False),
+    (float('-inf'), math.isinf, True),
+    (float('nan'), math.isnan, False),
+])
+def test_clamp_float_overflow_inf(value, test, neg):
+    permissive_schema = cavro.Schema('"float"', float_out_of_range_inf=True)
+    encoded = permissive_schema.binary_encode(value)
+    decoded = permissive_schema.binary_decode(encoded)
+    assert test(decoded)
+    if neg:
+        assert decoded < 0
+
+
+def test_clamp_int_overflow():
+    value = int(1e100)
+    default_schema = cavro.Schema('"int"')
+    with pytest.raises(Exception):
+        default_schema.binary_encode(value)
+    permissive_schema = cavro.Schema('"int"', clamp_int_overflow=True)
+    encoded = permissive_schema.binary_encode(value)
+    decoded = default_schema.binary_decode(encoded)
+    assert decoded == (2**31)-1  # max int value

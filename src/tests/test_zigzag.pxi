@@ -1,5 +1,5 @@
 
-cpdef str ubin(val, n_bytes):
+cpdef str _ubin(val, n_bytes):
     cdef str raw = bin(val)[2:]
     padded = raw.rjust(n_bytes * 8, '0')
     parts = [padded[i:i+8] for i in range(0, len(padded), 8)]
@@ -46,7 +46,7 @@ def _tests(add):
             reader = MemoryReader(src)
             actual = read_varint(reader)
             if actual != given:
-                raise AssertionError(f"{src}:\n   {ubin(actual, 4)}\n!= {ubin(given, 4)}")
+                raise AssertionError(f"{src}:\n   {_ubin(actual, 4)}\n!= {_ubin(given, 4)}")
     for mask in [0x7f, 0x7fff, 0x7fffff, 0x7fffffff, UINT32_MAX]:
         add(test_readvarint, mask)
 
@@ -69,7 +69,7 @@ def _tests(add):
             reader = MemoryReader(writer.bytes())
             actual = zigzag_decode_long(reader)
             if actual != given:
-                raise AssertionError(f"{writer.bytes()}: {given}\n   {ubin(actual, 8)}\n!= {ubin(given, 8)}")
+                raise AssertionError(f"{writer.bytes()}: {given}\n   {_ubin(actual, 8)}\n!= {_ubin(given, 8)}")
 
     def test_readvarlong(uint64_t mask):
         cdef random_t state
@@ -90,7 +90,7 @@ def _tests(add):
             reader = MemoryReader(src)
             actual = read_varlong(reader)
             if actual != given:
-                raise AssertionError(f"{src}: {given}\n   {ubin(actual, 8)}\n!= {ubin(given, 8)}")
+                raise AssertionError(f"{src}: {given}\n   {_ubin(actual, 8)}\n!= {_ubin(given, 8)}")
 
     for mask in [
         0x7f, 0x7fff, 0x7fffff, 0x7fffffff, 0x7fffffffffull,

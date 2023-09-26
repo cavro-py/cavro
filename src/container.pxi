@@ -6,7 +6,7 @@ OBJ_MAGIC_BYTES = b'Obj\x01'
 cdef const uint8_t[:] OBJ_MAGIC = OBJ_MAGIC_BYTES
 OBJ_FILE_METADATA = Schema({"type": "map", "values": "bytes"}, bytes_codec='utf8')
 
-SLICE_TYPE = type(OBJ_MAGIC)
+_SLICE_TYPE = type(OBJ_MAGIC)
 
 
 cdef int viewcmp(const uint8_t[:] a, const uint8_t[:] b):
@@ -15,8 +15,8 @@ cdef int viewcmp(const uint8_t[:] a, const uint8_t[:] b):
     return memcmp(&a[0], &b[0], len(a))
 
 
-cdef Reader make_reader(src):
-    if isinstance(src, Reader):
+cdef _Reader make_reader(src):
+    if isinstance(src, _Reader):
         return src
     elif isinstance(src, bytes):
         return MemoryReader(src)
@@ -28,17 +28,33 @@ cdef Reader make_reader(src):
         raise NotImplementedError(f"Cannot read from '{src}'")
 
 
-cdef Writer make_writer(src):
-    if isinstance(src, Writer):
+cdef _Writer make_writer(src):
+    if isinstance(src, _Writer):
         return src
     elif isinstance(src, (str, Path)):
-        return FileObjWriter(Path(src).open('wb'))
+        return FileWriter(Path(src).open('wb'))
     elif hasattr(src, 'write'):
-        return FileObjWriter(src)
+        return FileWriter(src)
     raise NotImplementedError(f"Cannot write to '{src}'")
     
 
 cdef class ContainerReader:
+
+    """
+    A class for reading avro object container files.
+
+    The container can ben used as an iterator, in which case it will yield the objects in the file in order:
+    ```
+    for obj in ContainerReader('file.avro'):
+        print(obj)
+    ```
+
+    Arguments:
+     * `src`: The source to read from. Can be a file-like object, instance of `cavro.MemoryReader`, or a path to a file (str|Path)
+     * `reader_schema`: The schema to use when reading objects. If not provided, the writer schema will be used.
+     * `options`: An Options object to use when constructing the writer schema. Defaults to the default options. This does not affect the `reader_schema` options.
+    """
+
     cdef readonly object metadata
     cdef readonly const uint8_t[:] marker
     cdef readonly Schema writer_schema
@@ -48,7 +64,7 @@ cdef class ContainerReader:
     cdef readonly size_t objects_left_in_block
     cdef MemoryReader current_block
     cdef Codec codec
-    cdef Reader reader
+    cdef _Reader reader
 
     def __init__(self, src, reader_schema=None, options=DEFAULT_OPTIONS):
         self.reader = make_reader(src)
@@ -114,7 +130,27 @@ cdef class ContainerReader:
 @cython.no_gc_clear
 cdef class ContainerWriter:
 
-    cdef Writer writer
+    """
+    A class for writing avro object container files.
+
+    The writer can be used as a context manager, in which case it will be closed when the context exits:
+    ```
+    with ContainerWriter('file.avro', schema) as writer:
+        writer.write_one(obj)
+    ```
+
+    Arguments:
+     * `dest`: The destination to write to. Can be a file-like object, instance of `cavro.MemoryWriter`, or a path to a file (str|Path)
+     * `schema`: The schema of the objects to be written.
+     * `codec`: The codec to use. Must be one of the supported codecs. Default to `null`
+     * `max_blocksize`: The maximum size of a block. Defaults to `16352`.
+     * `write_header`: Whether to write the avro header to the file before writing blocks. Defaults to `True`.
+     * `metadata`: A dictionary of metadata to write to the file. Defaults to an empty dictionary.
+     * `marker`: A 16-byte marker to use to separate blocks. Defaults to a random UUID.
+     * `options`: An Options object to use when writing. Defaults to the default options.
+    """
+
+    cdef _Writer writer
     cdef MemoryWriter pending_block
     cdef MemoryWriter next_block
     cdef MemoryWriter next_item
@@ -157,7 +193,7 @@ cdef class ContainerWriter:
             if marker is None:
                 marker = uuid.uuid4().bytes
             else:
-                if not isinstance(marker, (bytes, SLICE_TYPE)):
+                if not isinstance(marker, (bytes, _SLICE_TYPE)):
                     raise ValueError(f'Marker must be bytes, got: {type(marker)}')
                 if len(marker) != 16:
                     raise ValueError(f'Marker must be exactly 16 bytes, got: {bytes(marker)}')
@@ -202,7 +238,7 @@ cdef class ContainerWriter:
     def close(self):
         if self.writer is None:
             raise ValueError('Trying to close a closed Container')
-        cdef Writer writer = self.writer
+        cdef _Writer writer = self.writer
         self._flush_block(self.blocks_written == 0)
         self.writer = None
         self.next_item = None

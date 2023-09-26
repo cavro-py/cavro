@@ -7,7 +7,7 @@ cdef int FIT_EXACT = 3 # Value is the exact type and needs no further conversion
 
 CANONICAL_FORM_KEYS = ('name', 'type', 'fields', 'symbols', 'items', 'values', 'size')
 
-cdef class Sentinel:
+cdef class _Sentinel:
     cdef readonly str name
     
     def __init__(self, name):
@@ -16,26 +16,26 @@ cdef class Sentinel:
     def __repr__(self):
         return f'<{self.name}: {id(self)}>'
 
-MISSING_VALUE = Sentinel('MISSING_VALUE')
+MISSING_VALUE = _Sentinel('MISSING_VALUE')
 
-cdef class CanonicalForm(str):
+cdef class _CanonicalForm(str):
     pass
 
-cdef CanonicalForm dict_to_canonical(data):
+cdef _CanonicalForm dict_to_canonical(data):
     if isinstance(data, dict):
         pairs=[]
         for key in CANONICAL_FORM_KEYS:
             if key in data:
                 pairs.append((f'"{key}"', dict_to_canonical(data[key])))
         pair_str = ','.join(':'.join(p) for p in pairs)
-        return CanonicalForm('{' + pair_str + '}')
+        return _CanonicalForm('{' + pair_str + '}')
     elif isinstance(data, (tuple, list)):
         values = ','.join([dict_to_canonical(v) for v in data])
-        return CanonicalForm('[' + values + ']')
-    elif isinstance(data, CanonicalForm):
+        return _CanonicalForm('[' + values + ']')
+    elif isinstance(data, _CanonicalForm):
         return data
     else:
-        return CanonicalForm(json.dumps(data, ensure_ascii=False))
+        return _CanonicalForm(json.dumps(data, ensure_ascii=False))
 
 
 cdef dict _strip_keys(dict source, set keys):
@@ -43,6 +43,17 @@ cdef dict _strip_keys(dict source, set keys):
 
 
 cdef class AvroType:
+
+    """
+    The base class for all Avro types.
+    `cavro` separates the concept of a `Schema` from a `Type`, which is not strictly neccessary, but
+    makes some management of state a bit easier.
+    Here, a `Type` is the specific implementation of the data management, whereas a `Schema` is the
+    public interface for a schema definition, typically (but not always) containing multiple types either in unions or in nested record fields.
+
+    For normal usage, the `AvroType` class and subclasses can largely be ignored.
+    """
+
     type_name = NotImplemented
 
     cdef readonly Options options
@@ -65,7 +76,7 @@ cdef class AvroType:
             return inst
         if type_name in TYPES_BY_NAME:
             return TYPES_BY_NAME[type_name](schema, source, namespace)
-        if type_name == 'error' and schema.options.allow_error_type:
+        if type_name == 'error' and schema_ob.options.allow_error_type:
             return RecordType(schema, source, namespace)
         namespaced = resolve_namespaced_name(namespace, type_name)
         raise UnknownType(namespaced)
@@ -125,7 +136,7 @@ cdef class AvroType:
             self.assert_value(value)
         return self._convert_value(value)
 
-    cdef int binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int binary_buffer_encode(self, _Writer buffer, value) except -1:
         cdef ValueAdapter adapter
 
         if self.options.allow_tuple_notation and  isinstance(value, tuple) and len(value) == 2 and not isinstance(self, ArrayType):
@@ -140,18 +151,18 @@ cdef class AvroType:
             value = adapter.encode_value(value)
         return self._binary_buffer_encode(buffer, value)
 
-    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int _binary_buffer_encode(self, _Writer buffer, value) except -1:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement _binary_buffer_encode")
 
-    cdef binary_buffer_decode(self, Reader buffer):
+    cdef binary_buffer_decode(self, _Reader buffer):
         cdef ValueAdapter adapter
         value = self._binary_buffer_decode(buffer)
         for adapter in reversed(self.value_adapters):
             value = adapter.decode_value(value)
         return value
 
-    cdef _binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, _Reader buffer):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement binary_buffer_decode")
 
@@ -214,7 +225,7 @@ cdef class AvroType:
         raise NotImplementedError(
             f"{type(self).__name__} does not implement _json_decode")
 
-    cdef CanonicalForm canonical_form(self, set created):
+    cdef _CanonicalForm canonical_form(self, set created):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement canonical_form")
 
@@ -283,7 +294,7 @@ cdef class AvroType:
             created = set()
         if self.options.expand_types_in_schema:
             created = created.copy()
-        if isinstance(self, NamedType):
+        if isinstance(self, _NamedType):
             type_name = self.type
             if type_name in created:
                 return type_name
@@ -306,7 +317,8 @@ cdef class AvroType:
             return super().__str__()
 
 
-cdef class NamedType(AvroType):
+cdef class _NamedType(AvroType):
+    """Base class for all named types"""
 
     cdef readonly str name
     cdef readonly str namespace
@@ -320,12 +332,12 @@ cdef class NamedType(AvroType):
         if '.' in name:
             effective_namespace, name = name.rsplit('.', 1)
 
-        if not schema.options.allow_leading_dot_in_names:
+        if not schema_t.options.allow_leading_dot_in_names:
             if effective_namespace == '':
                 raise InvalidName(f"The null namespace cannot be specified in name fields")
 
-        name_pattern = schema.options.name_pattern
-        if schema.options.enforce_type_name_rules:    
+        name_pattern = schema_t.options.name_pattern
+        if schema_t.options.enforce_type_name_rules:    
             if not name_pattern.fullmatch(name):
                 raise InvalidName(f"Type name '{name}' is not valid")
         
@@ -338,22 +350,22 @@ cdef class NamedType(AvroType):
 
         self.effective_namespace = effective_namespace or None
 
-        if self.effective_namespace is not None and schema.options.enforce_namespace_name_rules:
+        if self.effective_namespace is not None and schema_t.options.enforce_namespace_name_rules:
             namespace_parts = self.effective_namespace.split('.')
             for part in namespace_parts:
                 if not part or not name_pattern.fullmatch(part):
                     raise InvalidName(f"Namespace '{self.effective_namespace}' is not valid")
 
-        if not schema.options.allow_primitive_name_collision:
+        if not schema_t.options.allow_primitive_name_collision:
             if name in PRIMITIVE_TYPES:
-                if schema.options.allow_primitive_names_in_namespaces and self.effective_namespace is not None:
+                if schema_t.options.allow_primitive_names_in_namespaces and self.effective_namespace is not None:
                     pass
                 else:
                     raise ValueError(f"'{name}' is not allowed as a name")
 
         alias_val = source.get('aliases', [])
         if not isinstance(alias_val, (list, tuple, set)):
-            if schema.options.allow_aliases_to_be_string:
+            if schema_t.options.allow_aliases_to_be_string:
                 alias_val = [alias_val]
             else:
                 raise ValueError(f"Aliases must be a list/tuple/set, got: {repr(alias_val)}")
@@ -365,7 +377,7 @@ cdef class NamedType(AvroType):
         def __get__(self):
             return resolve_namespaced_name(self.effective_namespace, self.name)
 
-    cdef bint name_matches(self, NamedType other):
+    cdef bint name_matches(self, _NamedType other):
         if self.name == other.name:
             return True
         if other.name in self.aliases:
@@ -395,7 +407,7 @@ cdef class NamedType(AvroType):
         return schema
 
     cdef AvroType clone_base(self, cls=None):
-        cdef NamedType inst = AvroType.clone_base(self, cls)
+        cdef _NamedType inst = AvroType.clone_base(self, cls)
         inst.name = self.name
         inst.namespace = self.namespace
         inst.effective_namespace = self.effective_namespace

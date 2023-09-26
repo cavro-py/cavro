@@ -1,5 +1,6 @@
 
 cdef class NullType(AvroType):
+    """The avro null type."""
     type_name = "null"
 
     cpdef AvroType copy(self):
@@ -11,12 +12,12 @@ cdef class NullType(AvroType):
     cpdef dict _get_schema_extra(self, set created):
         return {}
 
-    cdef int _binary_buffer_encode(self, Writer buffer, value) except -1:
+    cdef int _binary_buffer_encode(self, _Writer buffer, value) except -1:
         if value is None or value is MISSING_VALUE or (self.options.allow_false_values_for_null and not value):
             return 0
         raise ValueError(f'{repr(value)} not compatible with NullType')
 
-    cdef _binary_buffer_decode(self, Reader buffer):
+    cdef _binary_buffer_decode(self, _Reader buffer):
         return None
 
     cdef int _get_value_fitness(self, value) except -1:
@@ -39,8 +40,8 @@ cdef class NullType(AvroType):
     cpdef object _convert_value(self, object value):
         return None
 
-    cdef CanonicalForm canonical_form(self, set created):
-        return CanonicalForm('"null"')
+    cdef _CanonicalForm canonical_form(self, set created):
+        return _CanonicalForm('"null"')
 
     cdef bint accepts_missing_value(self):
         if self.options.missing_values_can_be_null:
