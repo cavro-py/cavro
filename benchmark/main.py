@@ -10,6 +10,15 @@ import github
 import pygit2
 import click
 
+try:
+    import avro_compat
+    HAVE_AVRO_COMPAT = True
+except ImportError:
+    HAVE_AVRO_COMPAT = False
+    adapt_compat = None
+else:
+    from benchmark.adapt import adapt_compat
+
 
 def run_test(tester, name, fn, fail):
     label = f'| {tester.NAME} {name}: '
@@ -29,6 +38,10 @@ def run_test(tester, name, fn, fail):
         return taken
 
 METHODS = ['avro', 'cavro', 'fastavro']
+
+if HAVE_AVRO_COMPAT:
+    METHODS += ['avro_compat', 'fastavro_compat']
+
 
 def run_benchmark(test_classes, methods, num, mul, fail):
     results = defaultdict(lambda: defaultdict(set))
@@ -157,10 +170,17 @@ def main(method, test, no_store, num, mul, fail):
     if not method:
         method = METHODS
 
+    if HAVE_AVRO_COMPAT:
+        for cls in test_classes:
+            for name in ['avro', 'fastavro']:
+                meth = getattr(cls, name)
+                setattr(cls, f'{name}_compat', adapt_compat(meth))
+
     all_results = run_benchmark(test_classes, method, num, mul, fail)
     print_results(all_results)
     if not no_store:
         store_results(all_results)
+
 
 if __name__ == '__main__':
     main()
