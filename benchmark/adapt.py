@@ -14,7 +14,8 @@ def adapt_compat(method):
     and replaces usages of a library with usages of the comparative
     avro-compat shim.
     '''
-    remote_globals = inspect.getclosurevars(method).globals
+    unwrapped = inspect.unwrap(method)
+    remote_globals = inspect.getclosurevars(unwrapped).globals
     name = method.__name__
     adapted_name = f'{name}_compat'
     method_source = textwrap.dedent(inspect.getsource(method))
@@ -26,5 +27,10 @@ def adapt_compat(method):
     exec_globals = remote_globals.copy()
     exec_globals['avro_compat'] = avro_compat
     exec_globals['fastavro_compat'] = fastavro_compat
-    exec(adapted, exec_globals, locals)
+    src_file = inspect.getfile(unwrapped)
+    method_code = compile(adapted, src_file, 'exec')
+    exec(method_code, exec_globals, locals)
+    new_fn = locals[adapted_name]
+    new_fn.__module__ = method.__module__
+
     return locals[adapted_name]

@@ -13,7 +13,6 @@ from io import BytesIO
 
 SCHEMA = open(os.path.join(os.path.dirname(__file__), 'complex_schema.json')).read()
 
-
 class ComplexSchema:
     """
     Measure the time taken to decode and re-encode 1,000 values, randomly

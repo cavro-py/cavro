@@ -5,7 +5,7 @@ import random
 import time
 import numpy
 from benchmark import simple, many_numbers, complex, pypifile, promotion
-
+import cProfile
 import github
 import pygit2
 import click
@@ -43,7 +43,7 @@ if HAVE_AVRO_COMPAT:
     METHODS += ['avro_compat', 'fastavro_compat']
 
 
-def run_benchmark(test_classes, methods, num, mul, fail):
+def run_benchmark(test_classes, methods, num, mul, fail, prof):
     results = defaultdict(lambda: defaultdict(set))
     testers = [t(mul) for t in test_classes]
     warmups = []
@@ -60,10 +60,19 @@ def run_benchmark(test_classes, methods, num, mul, fail):
     print(f" {len(warmups)} Warmups ".center(60, '='))
     for tester, name, fn in warmups:
         run_test(tester, name, fn, False)
+
+    if prof:
+        pr = cProfile.Profile()
+        pr.enable()
+
     print(f" Running {len(test_methods)} tests ".center(60, '='))
     for tester, name, fn in test_methods:
         results[tester.NAME][name].add(run_test(tester, name, fn, fail))
     print("".center(60, "="))
+    if prof:
+        pr.disable()
+        pr.print_stats(sort=prof)
+
     return interpret_raw_results(results)
 
 
@@ -161,7 +170,8 @@ ALL_TEST_CLASSES = [
 @click.option('--num', '-n', type=int, help="Number of times to run each test", default=None)
 @click.option('--mul', type=float, help="Ask test runners to multiply their runtime by this factor", default=1.)
 @click.option('--fail', is_flag=True, help="Fail on first error", default=False)
-def main(method, test, no_store, num, mul, fail):
+@click.option('--prof', help="Profile with specified sort", default=None)
+def main(method, test, no_store, num, mul, fail, prof):
     if test:
         test_classes = [t for t in ALL_TEST_CLASSES if t.NAME in test]
     else:
@@ -176,7 +186,7 @@ def main(method, test, no_store, num, mul, fail):
                 meth = getattr(cls, name)
                 setattr(cls, f'{name}_compat', adapt_compat(meth))
 
-    all_results = run_benchmark(test_classes, method, num, mul, fail)
+    all_results = run_benchmark(test_classes, method, num, mul, fail, prof)
     print_results(all_results)
     if not no_store:
         store_results(all_results)
