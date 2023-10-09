@@ -111,12 +111,14 @@ cdef class Record:
             rec = data
             self.data = rec.data
             return
-        if isinstance(data, Record) and data.Type.name == self.Type.name:
-            if self.Type.options.adapt_record_types:
+        if isinstance(data, Record):
+            if data.Type.name == self.Type.name and self.Type.options.adapt_record_types:
                 data_dict = data._asdict()
             else:
-                raise ValueError(f"Record {data} cannot be adapted to {self}")
-        if data:
+                raise ValueError(f"Record {data} cannot be adapted to {self.Type}")
+            if kwargs:
+                raise ValueError(f"Records may either be instantiated with a record, or **kwargs, not both")
+        elif data:
             if kwargs:
                 raise ValueError(f"Records may either be instantiated with a single dict, or **kwargs, not both")
             data_dict = data
@@ -378,7 +380,10 @@ cdef class RecordType(_NamedType):
         cdef Record rec
         cdef Py_ssize_t index = 0
         if isinstance(value, Record):
-            rec = value
+            if isinstance(value, self.record):
+                rec = value
+            else:
+                rec = self.record(value)
             rec_data = rec.data
             for field in self.fields:
                 field_value = rec_data[index]
@@ -387,6 +392,8 @@ cdef class RecordType(_NamedType):
                 field.type.binary_buffer_encode(buffer, field_value)
                 index = index + 1
             return 0
+        if not self.options.record_can_encode_dict:
+            raise InvalidValue(value, self, (self.name, ))
         if not self.options.record_allow_extra_fields:
             extra_fields = value.keys() - self.field_dict.keys()
             if extra_fields:
@@ -444,6 +451,10 @@ cdef class RecordType(_NamedType):
         cdef RecordField field
         if isinstance(value, self.record):
             return FIT_EXACT
+        if isinstance(value, Record):
+            if value.Type.name != self.type:
+                return FIT_NONE
+            value = value._asdict()
         if isinstance(value, dict):
             if self.options.record_values_type_hint and '-type' in value:
                 value = value.copy()

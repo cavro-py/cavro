@@ -33,5 +33,23 @@
 .hero .button-detail{
   opacity: 0.6;
   margin-left: 0.5em;
-
 }
+
+.api__item_class {
+  display: inline-block;
+  color: var(--ifm-color-secondary-darkest);
+  background-color: var(--ifm-color-secondary-light);
+  font-size: 90%;
+  font-weight: normal;
+  border-radius: 1em;
+  padding: 0 0.5em;
+}
+
+.api__sep {
+  height: 3em;
+}
+
+code{
+  border: 0 transparent;
+}
+

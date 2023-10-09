@@ -1,6 +1,7 @@
 {% from  'macros.jinja2' import is_public, member, is_exception with context %}
 ---
 title: API Reference
+custom_edit_url: null
 ---
 
 All members of {{module.modulename}} are defined in the top-level module.
@@ -13,7 +14,7 @@ isn't geared up to handle it. This may change in the future.
 
 {% for special in SPECIAL_CLASSES %}
 {% with m = module.members[special] %}
-{{ member(m) }}
+{{ member(m, true) }}
 {% endwith %}  
 {% endfor %}
 
@@ -21,6 +22,5 @@ isn't geared up to handle it. This may change in the future.
 ## Other Classes
 
 {% for m in module.flattened_own_members if m.qualname not in SPECIAL_CLASSES| trim %}
-{{ member.bases }}
-{{ member(m) }}
+{{ member(m, true) }}
 {% endfor %}

@@ -1,12 +1,16 @@
+{% macro mdx(val) %}
+{{ val | to_markdown | replace('->', '→') | replace('<', '‹') | replace('>', '›') | safe }}
+{% endmacro %}
+
 {% macro docstring(var) %}
 {% if var.docstring %}
-{{ var.docstring | to_markdown | replace('<', '&lt;') |safe}}
+{{ mdx(var.docstring)}}
 {% endif %}
 {% endmacro %}
 
 
 {% macro class(cls) %}
-### `class` {{ cls.qualname }}
+### <span class="api__item_class">class</span> {{ cls.qualname }}
 {{ docstring(cls) }}
 #### Members:
 {% for m in cls.own_members %}
@@ -27,21 +31,24 @@
 </div>
 {% endif %}
 
-##### `{{ty}}` {{ name }}{{ func.signature }}
+##### <span class="api__item_class">{{ty}}</span> {{ name }}{{ func.signature | replace('->', '→') | replace('\n', ' ') }}
 
-{{ docstring(func) | to_markdown | replace('<', '&lt;') |safe }}
+{{ mdx(docstring(func)) }}
 {% endmacro %}
 
 {% macro submodule(mod) %}
 {% endmacro %}
 
 {% macro variable(v) %}
-##### `attr` {{ v.name }}
+##### <span class="api__item_class">attr</span> {{ v.name }}
 {{ docstring(v) }}
 {% endmacro %}
 
-{% macro member(doc) %}
+{% macro member(doc, sep=false) %}
 {% if is_public(doc)|trim %}
+{% if sep %}<div class="api__sep"></div>
+
+{% endif %}
 {%- if doc.kind == "class" %}
 {{- class(doc) }}
 {% elif doc.kind == "function" %}

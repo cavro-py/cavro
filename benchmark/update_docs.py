@@ -1,4 +1,5 @@
 import base64
+import textwrap
 import json
 import operator
 import os
@@ -74,83 +75,88 @@ def results_table(results, commit):
     last_run = r2['run_time'].max()
     r2 = r2.query('run_time == @last_run')
     r2 = r2.drop(columns=['run_time', 'commit_time', 'commit']).set_index('lib')
+    r2['timings'] = r2['timings'].map(lambda v: ', '.join([f'{t:.4f}' for t in v]))
+    r2['min'] = r2['min'].map(lambda v: f'{v:.4f}')
+    r2['std'] = r2['std'].map(lambda v: f'{v:.4f}')
+    r2['normalized'] = r2['normalized'].map(lambda v: f'{v:.4f}')
     r2 = r2.rename({'min': 'min (s)', 'std': 'std (s)', 'normalized': 'normalized (avro=1)', 'timings': 'timings (s)'}, axis=1)
-    return r2.to_html(float_format='%.2f', formatters={'timings (s)': lambda v: ', '.join([f'{t:.4f}' for t in v])})
+    return r2.to_markdown()#float_format='%.2f', formatters={'timings (s)': lambda v: ', '.join([f'{t:.4f}' for t in v])})
 
 
-def make_commit_graph(results, col, title=None):
+def line_data(results):
     results = reversed(results)
-    results = [r for r in results if r['results']]
+    results = [r for r in results if r['results']][-50:]
     converted = [c for r in results for c in convert_item(r)]
     r2 = pd.DataFrame(converted)
-    r2['commit_short'] = r2['commit'].str[:7]
-    r2['run_time'] = pd.to_datetime(r2['run_time'], utc=False, unit='s')
-    r2['commit_time'] = pd.to_datetime(r2['commit_time'], utc=False, unit='s')
-    hover_data = ['commit_short', 'commit_time', 'min', 'std', 'normalized']
-    fig = px.line(
-        r2, 
-        x='commit_short', 
-        y=col, 
-        color='lib', 
-        hover_name='lib', 
-        hover_data=hover_data,
-        labels={
-            'min': 'Time Taken (s)', 
-            'commit_short': 'Commit Hash',
-            'normalized': 'Time taken relative to avro',
-        },
-        line_shape='hvh',
-        title=title
-    )
-    fig.update_layout(autosize=True, height=600)
-    return plotly.io.to_html(
-        fig, 
-        include_plotlyjs=False, 
-        include_mathjax=False, 
-        full_html=False
-    )
+    libs = sorted(r2['lib'].unique())
+    hashes = pd.Series(r2.sort_values('commit_time')['commit'].unique())
+    hash_len = 4
+    while True:
+        short_hash = hashes.str[:hash_len]
+        if len(short_hash.unique()) == len(short_hash):
+            break
+        hash_len += 1
+    short_hash.index = hashes.values
+    r2['commit_short'] = r2['commit'].map(short_hash)
+    r2 = r2.set_index('commit_short')
 
-
-def save_docs(html):
-    print('Writing benchmark.html')
-    with open("benchmark.html", "w") as fh:
-        fh.write(html)
-
-
-def upload_docs(html):
-    print("Uploading html")
-    g = github.Github(os.environ['UPLOAD_TOKEN'])
-    g.FIX_REPO_GET_GIT_REF = False
-    gh_repo = g.get_user('stestagg').get_repo('cavro')
-
-    current_file = gh_repo.get_contents('benchmark.html', ref='gh-pages')
-    gh_repo.update_file(
-        current_file.path,
-        'Automated upload of benchmark results',
-        html,
-        current_file.sha,
-        branch='gh-pages'
-    )
-    gh_repo._requester.requestJsonAndCheck(
-        'POST',
-        gh_repo.url+'/pages/builds',
-        headers={
-            'Accept': 'application/vnd.github.mister-fantastic-preview+json'
+    datasets = [
+        {
+            'label': lib,
+            'data': list(r2.query('lib == @lib').reindex(short_hash.values)['min'].values),
+            'stepped': 'middle',
         }
-    )
+        for lib in libs
+    ]
+
+    content = json.dumps({
+        'labels': list(short_hash.values),
+        #'times': [int(v) for v in r2['commit_time'].values],
+        'datasets': datasets
+    })
+    return '{' + content + '}'
+
+
+def save_docs(md):
+    print('Writing benchmark.html')
+    with open("doc/docs/benchmarks.md", "w") as fh:
+        fh.write(md)
+
+
+# def upload_docs(html):
+#     print("Uploading html")
+#     g = github.Github(os.environ['UPLOAD_TOKEN'])
+#     g.FIX_REPO_GET_GIT_REF = False
+#     gh_repo = g.get_user('stestagg').get_repo('cavro')
+
+#     current_file = gh_repo.get_contents('benchmark.html', ref='gh-pages')
+#     gh_repo.update_file(
+#         current_file.path,
+#         'Automated upload of benchmark results',
+#         html,
+#         current_file.sha,
+#         branch='gh-pages'
+#     )
+#     gh_repo._requester.requestJsonAndCheck(
+#         'POST',
+#         gh_repo.url+'/pages/builds',
+#         headers={
+#             'Accept': 'application/vnd.github.mister-fantastic-preview+json'
+#         }
+#     )
 
 def render_docs(results, latest_commit):
     template_path = os.path.join(os.path.dirname(__file__), 'templates')
     loader = jinja2.FileSystemLoader(template_path)
     env = jinja2.Environment(loader=loader)
-    template = env.get_template('benchmark.html')
+    template = env.get_template('benchmark.md')
     return template.render(
         results=results,
         classes={c.NAME: c for c in ALL_TEST_CLASSES},
-        make_commit_graph=make_commit_graph,
+        dedent=textwrap.dedent,
+        line_data=line_data,
         results_table=results_table,
-        latest_commit=latest_commit,
-        now=datetime.now()
+        latest_commit=latest_commit
     )
 
 
@@ -159,8 +165,8 @@ def main():
     formatted = format_results(results)
     html = render_docs(formatted, latest_commit)
     save_docs(html)
-    if 'UPLOAD_TOKEN' in os.environ:
-        upload_docs(html)
+    # if 'UPLOAD_TOKEN' in os.environ:
+    #     upload_docs(html)
 
 if __name__ == '__main__':
     sys.exit(main())

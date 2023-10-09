@@ -92,7 +92,7 @@ cdef class Options:
     of a schema.
     Instances of `Options` are immutable, create a modified copy of options, use the `replace` and `with_*` methods.
 
-    Parameters:
+    Attributes:
 
     * `fingerprint_returns_digest` If `True`, the `Schema.fingerprint` method returns a hashlib hash object, rather than the digest bytes
     * `canonical_form_repeat_fixed` Some libraries repeat enum type definitions with the same name/size in canonical form.  Setting this flag to True replicates that
@@ -192,7 +192,7 @@ cdef class Options:
         Typically, default values must be valid JSON values for the schema, setting this option to `True` allows invalid default values to be used (JSON decoding is still performed, but decode errors result in the raw value being used).
     * `externally_defined_types`
         An immutable dict of named types (instances of `AvroType`) that are defined outside of the schema being parsed.  This allows for custom/complex schema loading patterns where type definitions may be spread across multiple locations.
-        For example, if this dict has `{'Foo': <RecordType...>}, then a schema: `{"type": "Foo"}` will be parsed to be the passed-in Foo type.
+        For example, if this dict has `{'Foo': <RecordType...>}`, then a schema: `{"type": "Foo"}` will be parsed to be the passed-in Foo type.
         To add types to this dict, use the `with_external_types` method.
         **Note**: It's possible to end up with some weird situations including infinite recursion when using this option, as it's possible to create reference cycles between schemas resulting in infinite recursion errors.
         
