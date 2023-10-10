@@ -1,0 +1,32 @@
+name: TestPR
+
+on:
+  pull_request:
+    
+jobs:
+  buildTest:
+    name: Build, Test & Benchmark code
+    runs-on: ubuntu-latest
+    outputs:
+      benchmark-output: ${{ steps.benchmark.outputs.BENCHMARK_OUTPUT }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v3
+      - name: Install cavro
+        run: pip install .[test]
+      - name: Run tests
+        run: env PYTHONPATH=. pytest
+      - name: Install benchmark requirements
+        run: pip install -r benchmark/requirements.txt
+      - name: Fetch refs
+        run: git fetch -v origin +refs/perf/\*:refs/perf/\*
+      - id: benchmark
+        name: Run Benchmark
+        run: |
+          {
+            echo 'BENCHMARK_OUTPUT<<EOF'
+            PYTHONPATH=. python3 benchmark/main.py -x
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"

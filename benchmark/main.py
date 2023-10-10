@@ -1,4 +1,5 @@
 from collections import defaultdict, namedtuple
+from pathlib import Path
 import os
 import json
 import random
@@ -6,8 +7,6 @@ import time
 import numpy
 from benchmark import simple, many_numbers, complex, pypifile, promotion
 import cProfile
-import github
-import pygit2
 import click
 
 try:
@@ -44,7 +43,7 @@ if HAVE_AVRO_COMPAT:
 
 
 def run_benchmark(test_classes, methods, num, mul, fail, prof):
-    results = defaultdict(lambda: defaultdict(set))
+    results = defaultdict(lambda: defaultdict(list))
     testers = [t(mul) for t in test_classes]
     warmups = []
     test_methods = []
@@ -67,47 +66,26 @@ def run_benchmark(test_classes, methods, num, mul, fail, prof):
 
     print(f" Running {len(test_methods)} tests ".center(60, '='))
     for tester, name, fn in test_methods:
-        results[tester.NAME][name].add(run_test(tester, name, fn, fail))
+        results[tester.NAME][name].append(run_test(tester, name, fn, fail))
     print("".center(60, "="))
     if prof:
         pr.disable()
         pr.print_stats(sort=prof)
 
-    return interpret_raw_results(results)
-
-
-def summarize(vals):
-    a = numpy.array(list(vals))
-    return a.min(), a.std()
-
-
-Result = namedtuple("Result", ['min', 'std', 'normalized', 'timings'])
-def interpret_raw_results(results):
-    test_results = defaultdict(dict)
-    for test, lib_results in results.items():
-        avro_time, _ = summarize(lib_results['avro'])
-        for library, results in lib_results.items():
-            results = {r for r in results if r is not None}
-            if results:
-                min_val, std_val = summarize(results)
-                result = Result(min_val, std_val, min_val/avro_time, tuple(results))
-                test_results[test][library] = result._asdict()
-    return test_results
+    return {k: dict(v) for k, v in results.items()}
 
 
 def print_results(results):
     print("Benchmark results")
     print(f'Library Versions:')
     for lib, version in results['versions'].items():
-        print(f"\t{lib}: \x1b[1m{version}\x1b[0m")
+        print(f"\t{lib}: \x1b[31;1m{version}\x1b[0m")
 
-    for test, test_results in results.items():
-        if test in {'now', 'versions'}:
-            continue
+    for test, test_results in results['results'].items():
         print(f"\x1b[1m{test}:\x1b[0m")
-        for library, result in sorted(test_results.items()):
-            norm_speed = 1/result['normalized']
-            print(f"\t\x1b[1;1m{library}: {norm_speed:.2f}x\x1b[0m faster")
+        for library, results in test_results.items():
+            result_str = ', '.join([f'{r:.2f}s' for r in sorted(results)])
+            print(f"\t\x1b[1;1m{library}: {result_str}\x1b[0m")
 
 
 def _make_blob(repo, data):
@@ -122,45 +100,15 @@ def _make_gh_blob(repo, data):
     return blob.sha
 
 
-def add_metadata(results):
-    results['now'] = time.time()
-    results['versions'] = {}
+def wrap_results(results):
+    out = {}
+    out['now'] = time.time()
+    out['versions'] = {}
     for lib in libs:
         mod = __import__(lib)
-        results['versions'][lib] = mod.__version__
-
-
-def store_results(results): 
-    repo = pygit2.Repository('.')
-    for filepath, status in repo.status().items():
-        # This is a bad way of checking flags, but seems sufficient for now..
-        if status not in (pygit2.GIT_STATUS_CURRENT, pygit2.GIT_STATUS_IGNORED):
-            print(f"Working directory not clean: {filepath}: {status}, refusing to store results")
-            return
-    commit_hash = repo.head.target
-    ref_name = f'refs/perf/{commit_hash}'
-    if 'GITHUB_TOKEN' in os.environ:
-        print("Storing results in github repo")
-        g = github.Github(os.environ['GITHUB_TOKEN'])
-        g.FIX_REPO_GET_GIT_REF = False
-        gh_repo = g.get_user('stestagg').get_repo('cavro')
-        try:
-            existing_ref = gh_repo.get_git_ref(ref_name)
-        except github.UnknownObjectException:
-            gh_repo.create_git_ref(ref_name, _make_gh_blob(gh_repo, results))
-        else:
-            results['previous'] = existing_ref.object.sha
-            existing_ref.edit(_make_gh_blob(gh_repo, results))
-    else:
-        print("Storing results in local repo")
-        try:
-            existing_ref = repo.references[ref_name]
-        except KeyError:
-            repo.create_reference(ref_name, _make_blob(repo, results))
-        else:
-            results['previous'] = existing_ref.target.hex
-            existing_ref.set_target(_make_blob(repo, results))
-
+        out['versions'][lib] = mod.__version__
+    out['results'] = results
+    return out
 
 ALL_TEST_CLASSES = [
     many_numbers.ManyNumbersEncode,
@@ -182,12 +130,12 @@ if HAVE_AVRO_COMPAT:
 @click.command()
 @click.option('--method', '-m', multiple=True, help="Run only the specified method(s)")
 @click.option('--test', '-t', multiple=True, help="Run only the specified test(s)")
-@click.option('--no-store', '-x', is_flag=True, help="Don't store results", default=False)
 @click.option('--num', '-n', type=int, help="Number of times to run each test", default=None)
 @click.option('--mul', type=float, help="Ask test runners to multiply their runtime by this factor", default=1.)
 @click.option('--fail', is_flag=True, help="Fail on first error", default=False)
 @click.option('--prof', help="Profile with specified sort", default=None)
-def main(method, test, no_store, num, mul, fail, prof):
+@click.option('--output', '-o', help="Write results to file", type=click.Path(dir_okay=False, writable=True, path_type=Path), default=None)
+def main(method, test, num, mul, fail, prof, output):
     if test:
         test_classes = [t for t in ALL_TEST_CLASSES if t.NAME in test]
     else:
@@ -203,10 +151,17 @@ def main(method, test, no_store, num, mul, fail, prof):
                 setattr(cls, f'{name}_compat', adapt_compat(meth))
 
     all_results = run_benchmark(test_classes, method, num, mul, fail, prof)
-    add_metadata(all_results)
-    print_results(all_results)
-    if not no_store:
-        store_results(all_results)
+    out = wrap_results(all_results)
+
+    if output is not None:
+        if output.exists():
+            existing_results = json.loads(output.read_text())
+        else:
+            existing_results = []
+        existing_results.append(out)
+        output.write_text(json.dumps(existing_results))
+
+    print_results(out)
 
 
 if __name__ == '__main__':
