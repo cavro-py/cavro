@@ -1,9 +1,11 @@
+name: Build&Benchmark
+
 on:
   push:
     branches:
       - main
       - fixactions
-name: Build&Benchmark
+
 jobs:
   buildBenchmark:
     name: Build, Test & Benchmark code
@@ -22,10 +24,4 @@ jobs:
       - name: Run Benchmark
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: PYTHONPATH=. python3 benchmark/main.py
-      - name: Upload updated results
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          UPLOAD_TOKEN: ${{ secrets.UPLOAD_TOKEN }}
-        run: PYTHONPATH=. python3 benchmark/update_docs.py
- 
+        run: PYTHONPATH=. python3 benchmark/main.py 

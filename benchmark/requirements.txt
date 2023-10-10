@@ -6,3 +6,4 @@ plotly
 tqdm
 jinja2
 avro-compat
+tabulate
