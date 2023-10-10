@@ -1,9 +1,0 @@
-fastavro
-pygithub
-pygit2
-pandas
-plotly
-tqdm
-jinja2
-avro-compat
-tabulate
