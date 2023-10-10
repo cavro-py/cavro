@@ -28,11 +28,12 @@ These benchmarks are non-scientific, and are measured in uncontrolled environmen
 Their goal is to ensure that the performance of `cavro` is adequate compared to other offerings,
 and to highlight any performance regressions early.
 
+Each test is run 3 times for each library under test, and the results collected.  Graphs show the fastest run time.
+
+
 ### Most Recent Run
 
  * Commit Hash: `{{ latest_commit }}`
- * Run date: `{{now}}`
-
 
 {% for test, res in results.items()|sort %}
 ### {{test}}
@@ -49,7 +50,8 @@ and to highlight any performance regressions early.
         x: {title:{display: true, text: "Commit Hash"}},
         y: {title:{display: true, text: "Time Taken (s) Lower is better"}},
     },
-    interaction: { mode: 'x' }
+    interaction: { mode: 'x' },
+    animation: {duration: 0}
 }}/>
 
 #### Last Run Results

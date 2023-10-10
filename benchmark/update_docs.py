@@ -38,12 +38,13 @@ def get_results():
         if commit_hash in perf_refs:
             result = perf_refs[commit_hash]
         sorted_results.append((commit, result))
+
     return repo.head.target.hex, sorted_results
 
 
 def format_results(results):
     all_tests = set(chain(*[r.keys() for c, r in results]))
-    all_tests -= {'now', 'bulk', 'previous'} # doh
+    all_tests -= {'now', 'bulk', 'previous', 'versions'} # doh
     formatted = {t: [] for t in all_tests}
     for commit, result in results:
         for test in all_tests:

@@ -97,7 +97,13 @@ def interpret_raw_results(results):
 
 def print_results(results):
     print("Benchmark results")
+    print(f'Library Versions:')
+    for lib, version in results['versions'].items():
+        print(f"\t{lib}: \x1b[1m{version}\x1b[0m")
+
     for test, test_results in results.items():
+        if test in {'now', 'versions'}:
+            continue
         print(f"\x1b[1m{test}:\x1b[0m")
         for library, result in sorted(test_results.items()):
             norm_speed = 1/result['normalized']
@@ -116,8 +122,15 @@ def _make_gh_blob(repo, data):
     return blob.sha
 
 
-def store_results(results):
+def add_metadata(results):
     results['now'] = time.time()
+    results['versions'] = {}
+    for lib in libs:
+        mod = __import__(lib)
+        results['versions'][lib] = mod.__version__
+
+
+def store_results(results): 
     repo = pygit2.Repository('.')
     for filepath, status in repo.status().items():
         # This is a bad way of checking flags, but seems sufficient for now..
@@ -161,6 +174,9 @@ ALL_TEST_CLASSES = [
     promotion.SchemaPromotion,
     promotion.ContainerSchemaPromotion,
 ]
+libs = ['avro', 'cavro', 'fastavro']
+if HAVE_AVRO_COMPAT:
+    libs += ['avro_compat']
 
 
 @click.command()
@@ -187,6 +203,7 @@ def main(method, test, no_store, num, mul, fail, prof):
                 setattr(cls, f'{name}_compat', adapt_compat(meth))
 
     all_results = run_benchmark(test_classes, method, num, mul, fail, prof)
+    add_metadata(all_results)
     print_results(all_results)
     if not no_store:
         store_results(all_results)

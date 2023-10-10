@@ -16,4 +16,6 @@ pdoc cavro -t doc/pdoc-templates --no-search -e cavro=https://github.com/stestag
 
 find doc/docs/ -name '*.ipynb' -exec jupyter nbconvert --to markdown {} --TagRemovePreprocessor.remove_cell_tags=hide \;
 
+PYTHONPATH=. python benchmark/update_docs.py
+
 mv $BUILD_DIR/cavro.html $DEST/api.md
