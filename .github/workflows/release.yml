@@ -10,7 +10,7 @@ jobs:
     name: Call Build & Test
     uses: ./.github/workflows/build-test.yml
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build_wheels:
     name: Build wheels on ${{ matrix.os }}

@@ -7,7 +7,7 @@ on:
       - fixactions
   workflow_call:
     secrets:
-      GITHUB_TOKEN:
+      GH_TOKEN:
         required: true
 
 jobs:
@@ -27,5 +27,5 @@ jobs:
         run: pip install -r benchmark/requirements.txt
       - name: Run Benchmark
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: PYTHONPATH=. python3 benchmark/main.py 
