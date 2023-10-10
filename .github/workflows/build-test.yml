@@ -5,9 +5,13 @@ on:
     branches:
       - main
       - fixactions
+  workflow_call:
+    secrets:
+      GITHUB_TOKEN:
+        required: true
 
 jobs:
-  buildBenchmark:
+  buildTest:
     name: Build, Test & Benchmark code
     runs-on: ubuntu-latest
     steps:

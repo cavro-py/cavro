@@ -1,4 +1,4 @@
-name: Build Wheels
+name: Release Wheels
 
 on:
   push:
@@ -6,6 +6,12 @@ on:
       - "v*.*.*"
 
 jobs:
+  call-build-test:
+    name: Call Build & Test
+    uses: ./.github/workflows/build-test.yml
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
