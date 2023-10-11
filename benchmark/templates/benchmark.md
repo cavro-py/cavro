@@ -33,9 +33,10 @@ Each test is run 3 times for each library under test, and the results collected.
 
 ### Most Recent Run
 
- * Commit Hash: `{{ latest_commit }}`
+ * Commit Hash: `{{ latest_result.hash }}`
+ * Run time: `{{latest_result.date}}`
 
-{% for test, res in results.items()|sort %}
+{% for test in tests %}
 ### {{test}}
 {% with test_cls = classes[test] %}
 
@@ -45,7 +46,7 @@ Each test is run 3 times for each library under test, and the results collected.
 :::
 {% endif %}
 #### History
-<Line data={{ line_data(res) }} options={{ '{{' }}
+<Line data={{ line_data(results, test) }} options={{ '{{' }}
     scales: {
         x: {title:{display: true, text: "Commit Hash"}},
         y: {title:{display: true, text: "Time Taken (s) Lower is better"}},
@@ -55,7 +56,7 @@ Each test is run 3 times for each library under test, and the results collected.
 }}/>
 
 #### Last Run Results
-{{ results_table(res, latest_commit) }}
+{{ results_table(results, test) }}
 
 {% endwith %}
 
