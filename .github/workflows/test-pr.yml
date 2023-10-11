@@ -25,7 +25,7 @@ jobs:
         run: |
           {
             echo 'BENCHMARK_OUTPUT<<EOF'
-            PYTHONPATH=. python3 benchmark/main.py -x
+            PYTHONPATH=. python3 benchmark/main.py
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
       - uses: actions/github-script@v6
