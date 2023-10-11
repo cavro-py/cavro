@@ -23,17 +23,8 @@ jobs:
       - id: benchmark
         name: Run Benchmark
         run: |
-          {
-            echo 'BENCHMARK_OUTPUT<<EOF'
-            PYTHONPATH=. python3 benchmark/main.py
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-      - uses: actions/github-script@v6
+          PYTHONPATH=. python3 benchmark/main.py > benchmark_output.txt
+      - uses: actions/upload-artifact@v2
         with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: 'Benchmark Results: ${{ steps.benchmark.outputs.BENCHMARK_OUTPUT }}'
-            })
+          name: benchmark_output
+          path: benchmark_output.txt
