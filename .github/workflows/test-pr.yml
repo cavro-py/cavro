@@ -20,8 +20,6 @@ jobs:
         run: env PYTHONPATH=. pytest
       - name: Install benchmark requirements
         run: pip install -r benchmark/requirements.txt
-      - name: Fetch refs
-        run: git fetch -v origin +refs/perf/\*:refs/perf/\*
       - id: benchmark
         name: Run Benchmark
         run: |
@@ -30,3 +28,12 @@ jobs:
             PYTHONPATH=. python3 benchmark/main.py -x
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
+      - uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'Benchmark Results: ${{ steps.benchmark.outputs.BENCHMARK_OUTPUT }}'
+            })
