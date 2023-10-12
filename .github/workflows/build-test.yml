@@ -38,7 +38,7 @@ jobs:
       - name: Run Benchmark
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: PYTHONPATH=. python3 benchmark/main.py --output perf_results.json
+        run: PYTHONPATH=. python3 benchmark/main.py --output perf_results.json -h ${{ github.sha }}
 
       - uses: actions/github-script@v6
         with:
