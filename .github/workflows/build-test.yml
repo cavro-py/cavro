@@ -59,3 +59,19 @@ jobs:
             })
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Autogenerate docs pages
+        run: ./mkdocs.sh
+
+      - uses: actions/setup-node@v3
+        
+      - name: Install docs requirements
+        run: cd docs && npm install
+
+      - name: Build docs
+        run: cd docs && npm run build
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: docs
+          path: docs/build
