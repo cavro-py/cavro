@@ -48,5 +48,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue_number,
-              body: 'Benchmark outputs:\n```\n' + body + '\n```
+              body: body,
             });
