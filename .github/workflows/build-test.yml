@@ -38,12 +38,11 @@ jobs:
       - name: Run Benchmark
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: PYTHONPATH=. python3 benchmark/main.py --output perf_results.json
+        run: PYTHONPATH=. python3 benchmark/main.py --output perf_results.json -h ${{ github.sha }}
 
       - uses: actions/github-script@v6
         with:
           script: |
-            import { readFileSync } from 'node:fs';
             const branch = 'perf';
             const ref = branch;
             const path = 'perf_results.json';
@@ -54,7 +53,7 @@ jobs:
             const content = fs.readFileSync('perf_results.json').toString('base64');
             const message = 'Update perf_results.json from GitHub Actions';
 
-            github.rest.repos.createOrUpdateFileContents({  
+            await github.rest.repos.createOrUpdateFileContents({
               owner, repo, path, branch, sha, content, message
             })
         env:
