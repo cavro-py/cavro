@@ -13,27 +13,30 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      
       - uses: actions/setup-python@v3
+
       - name: Install cavro
         run: pip install .[test]
+
       - name: Run tests
         run: env PYTHONPATH=. pytest
+
       - name: Install benchmark requirements
         run: pip install -r benchmark/requirements.txt
+
+      - name: Make artifact dir
+        run: mkdir -p ${{ github.workspace }}/outputs
+
       - id: benchmark
         name: Run Benchmark
         run: |
-          {
-            echo 'BENCHMARK_OUTPUT<<EOF'
-            PYTHONPATH=. python3 benchmark/main.py -x
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-      - uses: actions/github-script@v6
+          PYTHONPATH=. python3 benchmark/main.py -s outputs/benchmark_output.txt
+      
+      - name: Write PR number
+        run: echo "${{ github.event.number }}" > outputs/pr.txt
+
+      - uses: actions/upload-artifact@v2
         with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: 'Benchmark Results: ${{ steps.benchmark.outputs.BENCHMARK_OUTPUT }}'
-            })
+          name: benchmark_output
+          path: outputs/
