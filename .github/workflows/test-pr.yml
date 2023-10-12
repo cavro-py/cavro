@@ -2,7 +2,7 @@ name: TestPR
 
 on:
   pull_request:
-    
+
 jobs:
   buildTest:
     name: Build, Test & Benchmark code
@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - uses: actions/setup-python@v3
 
       - name: Install cavro
@@ -32,7 +32,7 @@ jobs:
         name: Run Benchmark
         run: |
           PYTHONPATH=. python3 benchmark/main.py -s outputs/benchmark_output.txt
-      
+
       - name: Write PR number
         run: echo "${{ github.event.number }}" > outputs/pr.txt
 

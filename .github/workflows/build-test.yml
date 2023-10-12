@@ -53,7 +53,7 @@ jobs:
             const content = fs.readFileSync('perf_results.json').toString('base64');
             const message = 'Update perf_results.json from GitHub Actions';
 
-            await github.rest.repos.createOrUpdateFileContents({  
+            await github.rest.repos.createOrUpdateFileContents({
               owner, repo, path, branch, sha, content, message
             })
         env:
