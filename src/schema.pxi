@@ -41,6 +41,7 @@ cdef class Schema:
     cdef readonly object source
     cdef readonly Options options
     cdef readonly AvroType type
+    cdef str _canonical_form
 
     cdef readonly dict logical_types
 
@@ -91,7 +92,13 @@ cdef class Schema:
         Returns the canonical form of the schema as a string
         """
         def __get__(self):
-            return self.type.canonical_form(set())
+            # We are effectively immutable, so caching canonical form is safe here.
+            if self._canonical_form is None:
+                self._canonical_form = self.type.canonical_form(set())
+            return self._canonical_form
+
+    def __hash__(self):
+        return hash(self.canonical_form)
 
     property schema:
         """
