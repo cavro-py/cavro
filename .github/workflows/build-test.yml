@@ -1,4 +1,4 @@
-name: Build&Benchmark
+name: Build, Test & Benchmark main
 
 on:
   push:
@@ -15,21 +15,31 @@ jobs:
     name: Build, Test & Benchmark code
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: actions/setup-python@v3
+
       - name: Install cavro
         run: pip install .[test]
+
+      - name: Run tests
+        run: env PYTHONPATH=. pytest
+
       - name: Install benchmark requirements
         run: pip install -r benchmark/requirements.txt
+
       - name: Download historic benchmark data
         run: |
           curl -L https://raw.githubusercontent.com/stestagg/cavro/perf/perf_results.json > perf_results.json
+
       - name: Run Benchmark
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: PYTHONPATH=. python3 benchmark/main.py --output perf_results.json
+
       - uses: actions/github-script@v6
         with:
           script: |
@@ -45,7 +55,7 @@ jobs:
             const message = 'Update perf_results.json from GitHub Actions';
 
             github.rest.repos.createOrUpdateFileContents({  
-              owner, repo, path, branch, sha, content,
+              owner, repo, path, branch, sha, content, message
             })
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
