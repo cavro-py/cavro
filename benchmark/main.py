@@ -77,6 +77,7 @@ def run_benchmark(test_classes, methods, num, mul, fail, prof):
 
 def print_results(results):
     print("Benchmark results")
+    print(f"Commit Hash: {results.get('hash')}")
     print(f'Library Versions:')
     for lib, version in results['versions'].items():
         print(f"\t{lib}: \x1b[31;1m{version}\x1b[0m")
@@ -175,7 +176,8 @@ if HAVE_AVRO_COMPAT:
 @click.option('--prof', help="Profile with specified sort", default=None)
 @click.option('--output', '-o', help="Write results to file", type=click.Path(dir_okay=False, writable=True, path_type=Path), default=None)
 @click.option('--summary', '-s', help="Write text summary to file", type=click.Path(dir_okay=False, writable=True, path_type=Path), default=None)
-def main(method, test, num, mul, fail, prof, output, summary):
+@click.option('--hash', '-h', help="Hash value to include in results", default=None)
+def main(method, test, num, mul, fail, prof, output, summary, hash):
     if test:
         test_classes = [t for t in ALL_TEST_CLASSES if t.NAME in test]
     else:
@@ -192,6 +194,8 @@ def main(method, test, num, mul, fail, prof, output, summary):
 
     all_results = run_benchmark(test_classes, method, num, mul, fail, prof)
     out = wrap_results(all_results)
+    if hash:
+        out['hash'] = hash
 
     if output is not None:
         if output.exists():
