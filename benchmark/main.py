@@ -88,6 +88,45 @@ def print_results(results):
             print(f"\t\x1b[1;1m{library}: {result_str}\x1b[0m")
 
 
+def print_summary(results, dest):
+    with open(dest, 'w') as fp:
+        fp.write(f'Library Versions: ')
+        for lib, version in results['versions'].items():
+            fp.write(f"{lib}: {version}\t")
+        fp.write('\n')
+
+        max_test_len = max(len(t) for t in results['results'].keys())
+
+        min_times = {}
+        max_times = {}
+        sum_times = {}
+        for test, test_results in results['results'].items():
+            unit = 's'
+            timings = {l: min(v) for l, v in test_results.items()}
+
+            if 'avro' in test_results:
+                unit = 'x'
+                avro_time = min(test_results['avro'])
+                timings = {l: avro_time / min(v) for l, v in test_results.items()}
+
+            fp.write(f"\n{test.ljust(max_test_len)}: ")
+            for library, timing in sorted(timings.items()):
+                min_times[library] = min(min_times.get(library, 1e9), timing)
+                max_times[library] = max(max_times.get(library, 0), timing)
+                sum_times[library] = sum_times.get(library, 0) + timing
+                fp.write(f"{library}: {timing: >6.2f}{unit}, ")
+
+        fp.write(f"\n\nSummary:\n")
+        for library in min_times.keys():
+            if library == 'avro':
+                continue
+            min_time = min_times[library]
+            max_time = max_times[library]
+            sum_time = sum_times[library]
+            avg_time = sum_time / len(min_times)
+            fp.write(f"\t{library}: min: {min_time:.2f}{unit}, max: {max_time:.2f}{unit}, avg: {avg_time:.2f}{unit}\n")
+
+
 def _make_blob(repo, data):
     data_str = json.dumps(data, indent=2)
     blob_ref = repo.create_blob(data_str)
@@ -135,7 +174,8 @@ if HAVE_AVRO_COMPAT:
 @click.option('--fail', is_flag=True, help="Fail on first error", default=False)
 @click.option('--prof', help="Profile with specified sort", default=None)
 @click.option('--output', '-o', help="Write results to file", type=click.Path(dir_okay=False, writable=True, path_type=Path), default=None)
-def main(method, test, num, mul, fail, prof, output):
+@click.option('--summary', '-s', help="Write text summary to file", type=click.Path(dir_okay=False, writable=True, path_type=Path), default=None)
+def main(method, test, num, mul, fail, prof, output, summary):
     if test:
         test_classes = [t for t in ALL_TEST_CLASSES if t.NAME in test]
     else:
@@ -161,6 +201,9 @@ def main(method, test, num, mul, fail, prof, output):
         existing_results.append(out)
         output.write_text(json.dumps(existing_results))
 
+
+    if summary is not None:
+        print_summary(out, summary)
     print_results(out)
 
 

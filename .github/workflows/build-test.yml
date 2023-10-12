@@ -19,13 +19,33 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v3
-      - name: Fetch refs
-        run: git fetch -v origin +refs/perf/\*:refs/perf/\*
       - name: Install cavro
         run: pip install .[test]
       - name: Install benchmark requirements
         run: pip install -r benchmark/requirements.txt
+      - name: Download historic benchmark data
+        run: |
+          curl -L https://raw.githubusercontent.com/stestagg/cavro/perf/perf_results.json > perf_results.json
       - name: Run Benchmark
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: PYTHONPATH=. python3 benchmark/main.py 
+        run: PYTHONPATH=. python3 benchmark/main.py --output perf_results.json
+      - uses: actions/github-script@v6
+        with:
+          script: |
+            import { readFileSync } from 'node:fs';
+            const branch = 'perf';
+            const ref = branch;
+            const path = 'perf_results.json';
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const sha = (await octokit.rest.repos.getContent({owner, repo, path, ref})).data.sha;
+
+            const content = fs.readFileSync('perf_results.json').toString('base64');
+            const message = 'Update perf_results.json from GitHub Actions';
+
+            github.rest.repos.createOrUpdateFileContents({  
+              owner, repo, path, branch, sha, content,
+            })
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
