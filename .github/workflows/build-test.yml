@@ -71,12 +71,12 @@ jobs:
       - uses: actions/setup-node@v3
         
       - name: Install docs requirements
-        run: cd docs && npm install
+        run: cd doc && npm install
 
       - name: Build docs
-        run: cd docs && npm run build
+        run: cd doc && npm run build
 
       - uses: actions/upload-artifact@v2
         with:
           name: docs
-          path: docs/build
+          path: doc/build
