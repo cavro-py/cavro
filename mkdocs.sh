@@ -19,7 +19,7 @@ find doc/docs/ -name '*.ipynb' -exec jupyter nbconvert --to markdown {} --TagRem
 
 wget https://raw.githubusercontent.com/stestagg/cavro/perf/perf_results.json -O $BUILD_DIR/perf_results.json
 
-PYTHONPATH=. python benchmark/update_docs.py $BUILD_DIR/perf_results.json
+PYTHONPATH=. python benchmark/update_docs.py $BUILD_DIR/perf_results.json doc/docs/benchmarks.md
 
 mv $BUILD_DIR/cavro.html $DEST/api.md
 
