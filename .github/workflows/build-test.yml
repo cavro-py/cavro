@@ -62,8 +62,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
-      - name: Install requirements
-        run: pip install pdoc
+      - name: Install Python requirements
+        run: pip install pdoc jupyterlab
 
       - name: Autogenerate docs pages
         run: ./mkdocs.sh
