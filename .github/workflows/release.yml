@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v3
       - name: Install cibuildwheel
-        run: python -m pip install cibuildwheel==2.16.0
+        run: python -m pip install cibuildwheel==2.16.0 build
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
@@ -32,9 +32,11 @@ jobs:
           CIBW_BEFORE_TEST_LINUX: pip install numpy --config-settings=setup-args=-Dallow-noblas=true
           CIBW_TEST_EXTRAS: test
           CIBW_TEST_COMMAND: env PYTHONPATH={project} pytest {project}/tests
+      - name: Build sdist
+        run: python -m build --sdist --outdir wheelhouse
       - uses: actions/upload-artifact@v3
         with:
-          path: ./wheelhouse/*.whl
+          path: ./wheelhouse/*
       - uses: softprops/action-gh-release@v1
         with:
           files: ./wheelhouse/*.whl

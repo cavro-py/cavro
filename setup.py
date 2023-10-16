@@ -46,7 +46,7 @@ setup(
         compiler_directives={"language_level": 3},
     ),
     cmdclass = {'build_clib': build_clib},
-    version='1.0.0',
+    version='0.3.5',
     description="A Cython based Avro library",
     long_description=LONG_DESCRIPTION,
     author="Stephen Stagg",
