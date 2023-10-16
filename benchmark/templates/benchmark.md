@@ -1,3 +1,6 @@
+---
+custom_edit_url: null
+---
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,

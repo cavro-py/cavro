@@ -6,7 +6,6 @@ import re
 import subprocess
 import sys
 
-from Cython.Build import cythonize
 from setuptools import setup
 from distutils.command.build_clib import build_clib
 from setuptools.extension import Extension
@@ -19,14 +18,27 @@ with open(path.join(PROJECT_ROOT, "README.md")) as fh:
     LONG_DESCRIPTION = fh.read()
 
 
+sources = ['cavro.c']
+ext_args = {
+    'extra_compile_args': ['-g', '-O2'], 
+    'extra_link_args': ['-g'],
+}
+
+try:
+    from Cython.Build import cythonize
+except ImportError:
+    ext = Extension('cavro', sources=['cavro.c'], **ext_args)
+else:
+    ext = cythonize(Extension('cavro', sources=['cavro.pyx'], **ext_args))
+
+
 setup(
     name='cavro',
     ext_modules = cythonize(
         Extension(
             "cavro",
             sources=["cavro.pyx"],
-            extra_compile_args=['-g', '-O2'], 
-            extra_link_args=['-g'],
+            
         ),
         compiler_directives={"language_level": 3},
     ),
