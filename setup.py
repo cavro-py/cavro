@@ -29,7 +29,10 @@ try:
 except ImportError:
     ext = Extension('cavro', sources=['cavro.c'], **ext_args)
 else:
-    ext = cythonize(Extension('cavro', sources=['cavro.pyx'], **ext_args))
+    ext = cythonize(
+        Extension('cavro', sources=['cavro.pyx'], **ext_args),
+        compiler_directives={"language_level": 3},
+    )
 
 
 setup(
@@ -43,23 +46,27 @@ setup(
         compiler_directives={"language_level": 3},
     ),
     cmdclass = {'build_clib': build_clib},
-    version='0.1',
+    version='1.0.0',
     description="A Cython based Avro library",
     long_description=LONG_DESCRIPTION,
     author="Stephen Stagg",
     author_email="stestagg@gmail.com",
-    python_requires=">=3.4.0",
-    url="https://github.com/stestagg/cavro",
+    python_requires=">=3.8.0",
+    url="https://cavro.io/",
     license='MIT',
     classifiers=[
         # Trove classifiers
         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
         'License :: OSI Approved :: MIT License',
+        'Programming Language :: Cython',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
         'Programming Language :: Python :: Implementation :: CPython',
     ],
 )

@@ -1,4 +1,14 @@
 # Cavro specific
+
+
+doc/docs/api.md
+doc/docs/benchmarks.md
+doc/docs/user-guide/logical-types.md
+doc/docs/user-guide/options.md
+doc/docs/user-guide/promotion.md
+doc/docs/user-guide/records.md
+doc/docs/user-guide/schemas.md
+
 /data
 afl/graph/
 
