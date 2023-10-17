@@ -27,7 +27,7 @@ ext_args = {
 try:
     from Cython.Build import cythonize
 except ImportError:
-    ext = Extension('cavro', sources=['cavro.c'], **ext_args)
+    ext = [Extension('cavro', sources=['cavro.c'], **ext_args)]
 else:
     ext = cythonize(
         Extension('cavro', sources=['cavro.pyx'], **ext_args),
@@ -37,7 +37,7 @@ else:
 
 setup(
     name='cavro',
-    ext_modules = [ext],
+    ext_modules = ext,
     cmdclass = {'build_clib': build_clib},
     version='0.3.6',
     description="A Cython based Avro library",
