@@ -37,14 +37,7 @@ else:
 
 setup(
     name='cavro',
-    ext_modules = cythonize(
-        Extension(
-            "cavro",
-            sources=["cavro.pyx"],
-            
-        ),
-        compiler_directives={"language_level": 3},
-    ),
+    ext_modules = [ext],
     cmdclass = {'build_clib': build_clib},
     version='0.3.5',
     description="A Cython based Avro library",

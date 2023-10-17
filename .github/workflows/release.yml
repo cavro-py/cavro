@@ -39,5 +39,5 @@ jobs:
           path: ./wheelhouse/*
       - uses: softprops/action-gh-release@v1
         with:
-          files: ./wheelhouse/*.whl
+          files: ./wheelhouse/*
           draft: true
