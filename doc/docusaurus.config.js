@@ -24,8 +24,13 @@ const config = {
     locales: ['en'],
   },
 
+  markdown: {
+    mermaid: true
+  },
+
   themes: [
     '@easyops-cn/docusaurus-search-local',
+    '@docusaurus/theme-mermaid',
   ],
 
   presets: [
