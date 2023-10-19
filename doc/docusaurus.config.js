@@ -13,7 +13,7 @@ const config = {
   url: 'https://cavro.io',
   baseUrl: '/',
 
-  organizationName: 'stestagg',
+  organizationName: 'cavro-py',
   projectName: 'cavro',
 
   onBrokenLinks: 'throw',
@@ -41,7 +41,7 @@ const config = {
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl:
-            'https://github.com/stestagg/cavro/tree/main/doc/',
+            'https://github.com/cavro-py/cavro/tree/main/doc/',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
@@ -72,7 +72,7 @@ const config = {
             label: 'API Reference',
           },
           {
-            href: 'https://github.com/stestagg/cavro',
+            href: 'https://github.com/cavro-py/cavro',
             label: 'GitHub',
             position: 'right',
           },
@@ -112,7 +112,7 @@ const config = {
             items: [
               {
                 label: 'GitHub',
-                href: 'https://github.com/stestagg/cavro',
+                href: 'https://github.com/cavro-py/cavro',
               },
             ],
           },
