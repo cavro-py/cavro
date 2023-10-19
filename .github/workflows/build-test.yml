@@ -35,7 +35,7 @@ jobs:
 
       - name: Download historic benchmark data
         run: |
-          curl -L https://raw.githubusercontent.com/stestagg/cavro/perf/perf_results.json > perf_results.json
+          curl -L https://raw.githubusercontent.com/cavro-py/cavro/perf/perf_results.json > perf_results.json
 
       - name: Run Benchmark
         env:
