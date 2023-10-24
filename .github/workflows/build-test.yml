@@ -12,6 +12,8 @@ on:
 
 jobs:
   buildTest:
+    permissions:
+      contents: write
     name: Build, Test & Benchmark code
     runs-on: ubuntu-latest
     steps:
