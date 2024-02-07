@@ -43,6 +43,33 @@ cdef class LogicalType(ValueAdapter):
                 if inst is not None:
                     return inst
 
+import gzip
+from io import BytesIO
+
+
+cdef class GzipStringType(LogicalType):
+    """Logical type for gzip-compressed string values"""
+    logical_name = 'gzip-str'
+    underlying_types = (BytesType, )
+
+    @classmethod
+    def _for_type(cls, underlying: AvroType):
+        # Only apply this logical type to bytes type
+        return cls() if isinstance(underlying, BytesType) else None
+
+    cdef encode_value(self, value):
+        if not isinstance(value, str):
+            raise TypeError(f"Value to encode should be a string, got {type(value)}")
+        with BytesIO() as bytes_io:
+            with gzip.GzipFile(fileobj=bytes_io, mode='wb') as gzip_file:
+                gzip_file.write(value.encode('utf-8'))
+            return bytes_io.getvalue()
+
+    cdef decode_value(self, value):
+        with BytesIO(value) as bytes_io:
+            with gzip.GzipFile(fileobj=bytes_io, mode='rb') as gzip_file:
+                return gzip_file.read().decode('utf-8')
+
 
 cdef class CustomLogicalType(LogicalType):
 
@@ -395,4 +422,3 @@ cdef class TimestampMicros(LogicalType):
 
     cdef decode_value(self, value):
         return EPOCH_DT + datetime.timedelta(microseconds=value)
-

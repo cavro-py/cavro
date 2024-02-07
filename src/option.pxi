@@ -352,6 +352,8 @@ cdef class Options:
                 out[field.name] = (self_val, other_val)
         return out
 
+    logical_types: tuple[LogicalType] = LOGICAL_TYPES + (GzipStringType,)
+
 _OptionsWrapper._set_from_dataclass(Options)
 
 
