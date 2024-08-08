@@ -1,6 +1,6 @@
 # cavro 
 
-An Avro serializer/deserializer for python written in cython.
+A Python Avro serializer/deserializer written in cython.
 
 [Documentation](https://cavro.io/) and user guide here:
 
