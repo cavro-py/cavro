@@ -7,4 +7,4 @@ A Python Avro serializer/deserializer written in cython.
 https://cavro.io/
 
 
-Designed to be fast and usable.
+Designed to be fast, correct and friendly to use.
