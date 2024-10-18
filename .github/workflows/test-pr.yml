@@ -36,7 +36,7 @@ jobs:
       - name: Write PR number
         run: echo "${{ github.event.number }}" > outputs/pr.txt
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: benchmark_output
           path: outputs/
