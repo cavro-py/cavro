@@ -3,28 +3,7 @@
 custom_edit_url: null
 sidebar_position: 20
 ---
-import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  Colors,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-export const chartJsRegistered = ChartJS.register(
-  CategoryScale,
-  Colors,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
+import BenchmarkChart from '@site/src/components/BenchmarkChart';
 
 # Benchmarks
 
@@ -51,14 +30,7 @@ Each test is run 3 times for each library under test, and the results collected.
 :::
 {% endif %}
 #### History
-<Line data={{ line_data(results, test) }} options={{ '{{' }}
-    scales: {
-        x: {title:{display: true, text: "Commit Hash"}},
-        y: {title:{display: true, text: "Time Taken (s) Lower is better"}},
-    },
-    interaction: { mode: 'x' },
-    animation: {duration: 0}
-}}/>
+<BenchmarkChart data={{ line_data(results, test) }}/>
 
 #### Last Run Results
 {{ results_table(results, test) }}

@@ -1,0 +1,19 @@
+.chart {
+  margin-bottom: 1.5rem;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  justify-content: flex-end;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-700);
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle input {
+  cursor: pointer;
+}
