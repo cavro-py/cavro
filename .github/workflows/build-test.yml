@@ -89,7 +89,7 @@ jobs:
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fixactions'
         uses: peaceiris/actions-gh-pages@v4
         with:
-          github_token: ${{ secrets.GH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./doc/build
           publish_branch: gh-pages
           commit_message: "Update generated docs from ${{ github.sha }}"
