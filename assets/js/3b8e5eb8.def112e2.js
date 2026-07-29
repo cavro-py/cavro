@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkdoc||=[]).push([[9521],{696(e){e.exports=JSON.parse('{"categoryGeneratedIndex":{"title":"User Guide","slug":"/category/user-guide","permalink":"/docs/category/user-guide","sidebar":"docsSidebar","navigation":{"next":{"title":"1 Minute Introduction to cavro","permalink":"/docs/user-guide/intro"}}}}')}}]);
