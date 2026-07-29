@@ -70,8 +70,10 @@ jobs:
       - name: Autogenerate docs pages
         run: ./mkdocs.sh
 
-      - uses: actions/setup-node@v3
-        
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Install docs requirements
         run: cd doc && npm install
 

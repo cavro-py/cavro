@@ -1,8 +1,9 @@
 // @ts-check
 // Note: type annotations allow type checking and IDEs autocompletion
 
-const lightCodeTheme = require('prism-react-renderer/themes/github');
-const darkCodeTheme = require('prism-react-renderer/themes/dracula');
+const {themes} = require('prism-react-renderer');
+const lightCodeTheme = themes.github;
+const darkCodeTheme = themes.dracula;
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -17,7 +18,6 @@ const config = {
   projectName: 'cavro',
 
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
 
   i18n: {
     defaultLocale: 'en',
@@ -25,7 +25,11 @@ const config = {
   },
 
   markdown: {
-    mermaid: true
+    format: 'detect',
+    mermaid: true,
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+    },
   },
 
   themes: [
@@ -67,7 +71,7 @@ const config = {
             label: 'User Guide',
           },
           {
-            href: '/docs/API',
+            href: '/docs/api',
             position: 'left',
             label: 'API Reference',
           },

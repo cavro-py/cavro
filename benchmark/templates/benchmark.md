@@ -15,7 +15,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
-ChartJS.register(
+export const chartJsRegistered = ChartJS.register(
   CategoryScale,
   Colors,
   LinearScale,
