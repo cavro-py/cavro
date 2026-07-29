@@ -84,3 +84,12 @@ jobs:
         with:
           name: docs
           path: doc/build
+
+      - name: Publish docs to gh-pages
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fixactions'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GH_TOKEN }}
+          publish_dir: ./doc/build
+          publish_branch: gh-pages
+          commit_message: "Update generated docs from ${{ github.sha }}"
